@@ -264,7 +264,11 @@ function CSPS:Initialize()
 	if not CSPS.savedVariables.wasConverted then
 		CSPS.convertOldSVs()
 	end
-		
+	
+	
+	if mySettings.showOutfits == nil then mySettings.showOutfits = true end
+	CSPS.outfits.toggleShowInTree()
+	
 	cp.CreateTable()
 	cp.createList()
 	
