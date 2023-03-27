@@ -33,6 +33,7 @@ CSPS.cpColTex = {
 		"esoui/art/menubar/gamepad/gp_playermenu_icon_collections.dds",
 		"esoui/art/menubar/gamepad/gp_playermenu_icon_skills.dds",	
 		"esoui/art/armory/builditem_icon.dds",	
+		"ESOUI/art/restyle/gamepad/gp_dyes_tabicon_outfitstyledye.dds",
 }
 
 CSPS.changedCP = false

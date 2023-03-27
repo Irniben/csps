@@ -15,16 +15,18 @@ local PROFILE_TYPE_ACCOUNT, PROFILE_TYPE_CHAR, PROFILE_TYPE_IMPORT, PROFILE_TYPE
 local PROFILE_TYPE_QS_ACCOUNT, PROFILE_TYPE_QS_CHAR, PROFILE_TYPE_SK_ACCOUNT, PROFILE_TYPE_SK_CHAR = 6, 7, 8, 9
 local PROFILE_TYPE_GEAR_ACCOUNT, PROFILE_TYPE_GEAR_CHAR = 10, 11
 local PROFILE_TYPE_HOTBARS_ACCOUNT = 12 -- only a placeholder...
-local PROFILE_TYPE_MAX = 12
+local PROFILE_TYPE_OUTFIT_ACCOUNT, PROFILE_TYPE_OUTFIT_CHAR = 13, 14
+local PROFILE_TYPE_MAX = 14
 
-local PROFILE_CATEGORY_CP, PROFILE_CATEGORY_QS, PROFILE_CATEGORY_SK, PROFILE_CATEGORY_GEAR = 1, 2, 3, 4
-local PROFILE_DISCIPLINE_CP_GREEN, PROFILE_DISCIPLINE_CP_BLUE, PROFILE_DISCIPLINE_CP_RED, PROFILE_DISCIPLINE_QUICKSLOTS, PROFILE_DISCIPLINE_SKILLS, PROFILE_DISCIPLINE_GEAR = 1,2,3,4,5,6
+local PROFILE_CATEGORY_CP, PROFILE_CATEGORY_QS, PROFILE_CATEGORY_SK, PROFILE_CATEGORY_GEAR, PROFILE_CATEGORY_OUTFIT = 1, 2, 3, 4, 5
+local PROFILE_DISCIPLINE_CP_GREEN, PROFILE_DISCIPLINE_CP_BLUE, PROFILE_DISCIPLINE_CP_RED, PROFILE_DISCIPLINE_QUICKSLOTS, PROFILE_DISCIPLINE_SKILLS, PROFILE_DISCIPLINE_GEAR, PROFILE_DISCIPLINE_OUTFIT = 1,2,3,4,5,6,7
 
 local firstTypeOfCategory = { -- is used to tranfer 1/2 to other categories
 	[PROFILE_CATEGORY_CP] = PROFILE_TYPE_ACCOUNT,
 	[PROFILE_CATEGORY_QS] = PROFILE_TYPE_QS_ACCOUNT,
 	[PROFILE_CATEGORY_SK] = PROFILE_TYPE_SK_ACCOUNT,
 	[PROFILE_CATEGORY_GEAR] = PROFILE_TYPE_GEAR_ACCOUNT,
+	[PROFILE_CATEGORY_OUTFIT] = PROFILE_TYPE_OUTFIT_ACCOUNT,
 }
 
 local nonCustomTypes = {
@@ -48,6 +50,7 @@ local profileCatByDiscipline = {
 	[PROFILE_DISCIPLINE_SKILLS] = PROFILE_CATEGORY_SK,
 	[PROFILE_DISCIPLINE_QUICKSLOTS] = PROFILE_CATEGORY_QS,
 	[PROFILE_DISCIPLINE_GEAR] = PROFILE_CATEGORY_GEAR,
+	[PROFILE_DISCIPLINE_OUTFIT] = PROFILE_CATEGORY_OUTFIT,
 }
 
 local profileCatByType = {
@@ -56,18 +59,22 @@ local profileCatByType = {
 	[PROFILE_TYPE_GEAR_ACCOUNT] = PROFILE_CATEGORY_GEAR,
 	[PROFILE_TYPE_GEAR_CHAR] = PROFILE_CATEGORY_GEAR,
 	[PROFILE_TYPE_HOTBARS_ACCOUNT] = PROFILE_CATEGORY_CP, -- (placeholder type)
+	[PROFILE_TYPE_OUTFIT_ACCOUNT] = PROFILE_CATEGORY_OUTFIT,
+	[PROFILE_TYPE_OUTFIT_CHAR] = PROFILE_CATEGORY_OUTFIT,
 }
 
 local profileDisciplineByCategory = {
 	[PROFILE_CATEGORY_GEAR] = PROFILE_DISCIPLINE_GEAR,
 	[PROFILE_CATEGORY_QS] = PROFILE_DISCIPLINE_QUICKSLOTS,
 	[PROFILE_CATEGORY_SK] = PROFILE_DISCIPLINE_SKILLS,
+	[PROFILE_CATEGORY_OUTFIT] = PROFILE_DISCIPLINE_OUTFIT,
 }
 
 local profileDisciplineTitles = {
-	[PROFILE_DISCIPLINE_QUICKSLOTS] = SI_COLLECTIONS_BOOK_QUICKSLOT_KEYBIND,
-	[PROFILE_DISCIPLINE_SKILLS] = SI_CHARACTER_MENU_SKILLS,
-	[PROFILE_DISCIPLINE_GEAR] = SI_ARMORY_EQUIPMENT_LABEL,
+	[PROFILE_DISCIPLINE_QUICKSLOTS] = GS(SI_COLLECTIONS_BOOK_QUICKSLOT_KEYBIND),
+	[PROFILE_DISCIPLINE_SKILLS] = GS(SI_CHARACTER_MENU_SKILLS),
+	[PROFILE_DISCIPLINE_GEAR] = GS(SI_ARMORY_EQUIPMENT_LABEL),
+	[PROFILE_DISCIPLINE_OUTFIT] = GetCollectibleCategoryNameByCategoryId(13),
 }
 
 local profileCatsThatCanBeConnected = {[PROFILE_CATEGORY_CP] = true, [PROFILE_CATEGORY_QS] = true,}
@@ -98,6 +105,8 @@ local function getProfileTypeLists(createIfEmpty, presetsToo, accountCpHb)
 		sV.skProfiles = sV.skProfiles or {}
 		cC.gearProfiles = cC.gearProfiles or {}
 		sV.gearProfiles = sV.gearProfiles or {}
+		cC.outfitProfiles = cC.outfitProfiles or {}
+		sV.outfitProfiles = sV.outfitProfiles or {}
 	end
 	local profileTypeLists = {
 		sV.cpProfiles, cC.cpProfiles, 			--1,2
@@ -107,6 +116,8 @@ local function getProfileTypeLists(createIfEmpty, presetsToo, accountCpHb)
 		sV.qsProfiles,	cC.qsProfiles,			--6,7
 		sV.skProfiles,	cC.skProfiles,			--8,9
 		sV.gearProfiles, cC.gearProfiles, 		--10,11
+		nil,
+		sV.outfitProfiles, cC.outfitProfiles, -- 13, 14
 	}
 	if accountCpHb then table.insert(profileTypeLists, sV.cpHbProfiles) end --12: account wide cp hotbars
 	return profileTypeLists
@@ -457,7 +468,7 @@ local function hbPshowTTApply(myId, myDiscipline, profileIsAccountWide, control)
 		InitializeTooltip(InformationTooltip, control, LEFT)	
 		local r, g, b = ZO_SELECTED_TEXT:UnpackRGB()
 		InformationTooltip:AddLine(myTooltip[1], "ZoFontGame", r, g, b)
-		local myProfile = profileIsAccountWide and CSPS.currentCharData.qsProfiles[myId] or profileIsAccountWide and CSPS.savedVariables.qsProfiles[myId]
+		local myProfile = not profileIsAccountWide and CSPS.currentCharData.qsProfiles[myId] or profileIsAccountWide and CSPS.savedVariables.qsProfiles[myId]
 		CSPS.addQsBarsToTooltip(CSPS.extractQS(myProfile.hbComp))
 	end
 end
@@ -570,6 +581,18 @@ function CSPS.showSkillProfileTT(control, myType, myId)
 	end
 end
 
+local function showOutfitTT(control, myType, myId)
+	local myProfile = getProfileByTypeAndId(myType, myId)
+	if not myProfile or not myProfile.outfitComp then return end
+	InitializeTooltip(InformationTooltip, control, LEFT)	
+	InformationTooltip:AddLine(myProfile.name, "ZoFontWinH2")
+	if myProfile.lastSaved then 
+		InformationTooltip:AddLine(string.format("(%s)", os.date("%x", myProfile.lastSaved)), "ZoFontGame") 
+	end
+	ZO_Tooltip_AddDivider(InformationTooltip)
+	CSPS.outfits.addToTooltip(CSPS.outfits.extract(myProfile.outfitComp, {}))
+end
+
 local function showGearTT(control, myType, myId)
 	local myProfile = getProfileByTypeAndId(myType, myId)
 	if not myProfile or not myProfile.gear and not myProfile.gearUnique then return end
@@ -659,6 +682,7 @@ function subProfileCLASS:SetupItemRow( control, data )
 		[PROFILE_DISCIPLINE_QUICKSLOTS] = function() CSPS.showQuickSlotProfileTT(control, data.type, data.myId) end,
 		[PROFILE_DISCIPLINE_SKILLS] = function()  CSPS.showSkillProfileTT(control, data.type, data.myId) end,
 		[PROFILE_DISCIPLINE_GEAR] = function() showGearTT(control, data.type, data.myId) end,
+		[PROFILE_DISCIPLINE_OUTFIT] = function() showOutfitTT(control, data.type, data.myId) end,
 	}
 
 	tooltipFunction = tooltipFunction[data.discipline] 
@@ -802,7 +826,7 @@ function subProfileCLASS:SortScrollList( )
 	end
 end
 
-function subProfileCLASS:BuildMasterList( )
+function subProfileCLASS:BuildMasterList()
 	self.masterList = { }
 	local profileTypeLists = getProfileTypeLists(false, true, true)
 	for myType, myList in pairs(profileTypeLists) do
@@ -869,7 +893,7 @@ function CSPS.showSubProfileDiscipline(newDiscipline, silentChange)
 	CSPS.subProfileDiscipline = newDiscipline
 	CSPS.setSubProfileType()
 		
-	CSPSWindowSubProfilesTitle:SetText(GS(profileDisciplineTitles[CSPS.subProfileDiscipline] or CSPS_Tooltiptext_CPProfile))
+	CSPSWindowSubProfilesTitle:SetText(profileDisciplineTitles[CSPS.subProfileDiscipline] or GS(CSPS_Tooltiptext_CPProfile))
 	
 	local r, g, b = CSPS.cpColors[CSPS.subProfileDiscipline]:UnpackRGB()
 	CSPSWindowSubProfilesTitle:SetColor(r,g,b)
@@ -935,6 +959,11 @@ function CSPS.subProfilePlus(myType, qsBarIndex)
 	end
 	if profileCatByType[myType] == PROFILE_CATEGORY_CP then
 		myBar = cp.singleBarCompress(cp.bar[CSPS.subProfileDiscipline])	
+	elseif profileCatByType[myType] == PROFILE_CATEGORY_OUTFIT then
+		local outfitComp = CSPS.outfits.compress()
+		myProfile = {name = myName, discipline = CSPS.subProfileDiscipline, outfitComp = outfitComp, isNew = true}
+		addSubProfile(myProfile, myType)
+		return
 	elseif profileCatByType[myType] == PROFILE_CATEGORY_GEAR then
 		local gear, gearUnique = CSPS.buildGearString()
 		if not gear and not gearUnique then return end
@@ -1066,11 +1095,18 @@ local function quickslotSaveGo(myId, myType, profileToSave)
 	CSPS.subProfileList:RefreshData()
 end
 
+local function outfitSaveGo(myId, myType, profileToSave)
+	profileToSave.outfitComp = CSPS.outfits.compress()
+	profileToSave.lastSaved = os.time()
+	CSPS.subProfileList:RefreshData()
+end
+
 function CSPS.subProfileSaveGo(myId, myType, accountCpHb)
 	local profileToSave = getProfileByTypeAndId(myType, myId, nil, accountCpHb)
 	if profileCatByType[myType] == PROFILE_CATEGORY_QS then quickslotSaveGo(myId, myType, profileToSave) return end
 	if profileCatByType[myType] == PROFILE_CATEGORY_SK then skillProfileSaveGo(myId, myType, profileToSave) return end
 	if profileCatByType[myType] == PROFILE_CATEGORY_GEAR then gearProfileSaveGo(myId, myType, profileToSave) return end
+	if profileCatByType[myType] == PROFILE_CATEGORY_OUTFIT then outfitSaveGo(myId, myType, profileToSave) return end
 	local myTable = {}
 	local myPoints = 0
 	if not cpHotBarProfileType[myType] then
@@ -1443,6 +1479,14 @@ local function loadGearProfile(myType, myId, _)
 	CSPS.refreshTree()
 end
 
+local function loadOutfitProfile(myType, myId, _)
+	local profileTypeLists = getProfileTypeLists(false, false)
+	local myProfile = profileTypeLists[myType] and profileTypeLists[myType][myId]
+	if not myProfile or not myProfile.outfitComp then return end
+	CSPS.outfits.extract(myProfile.outfitComp)
+	CSPS.refreshTree()	
+end
+
 function CSPS.SubProfileListRowMouseUp( control, button, upInside, ctrl, alt, shift)	
 	if not upInside then return end
 	local myType = control.data.type
@@ -1464,6 +1508,7 @@ function CSPS.SubProfileListRowMouseUp( control, button, upInside, ctrl, alt, sh
 			[PROFILE_CATEGORY_QS] = loadQuickSlots,
 			[PROFILE_CATEGORY_SK] = loadSkillProfile,
 			[PROFILE_CATEGORY_GEAR] = loadGearProfile,
+			[PROFILE_CATEGORY_OUTFIT] = loadOutfitProfile,
 		}
 		
 		loadingFunctions[profileCatByType[myType]](myType, myId, myDiscipline, control.data.accountWide)

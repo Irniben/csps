@@ -68,7 +68,7 @@ function CSPS.deleteProfileGo()
 end
 
 
-local function applyAll(excludeSkills, excludeAttributes, excludeGreenCP, excludeBlueCP, excludeRedCP, excludeHotbar, excludeGear, excludeQuickslots)
+local function applyAll(excludeSkills, excludeAttributes, excludeGreenCP, excludeBlueCP, excludeRedCP, excludeHotbar, excludeGear, excludeQuickslots, excludeOutfit)
 	
 	if not excludeSkills then 
 		if not excludeHotbar then 
@@ -91,6 +91,8 @@ local function applyAll(excludeSkills, excludeAttributes, excludeGreenCP, exclud
 	end
 	
 	if not excludeGear then CSPS.equipAllFittingGear() end
+	if CSPS.savedVariables.settings.showOutfits and not excludeOutfit then CSPS.outfits.apply() end
+	
 	if not excludeQuickslots then 
 		CSPS.loadConnectedQuickSlots() 
 		CSPS.applyQS()
@@ -105,7 +107,7 @@ function CSPS.btnApplyAll(mouseButton)
 		return
 	end
 	local toExclude = CSPS.savedVariables.settings.applyAllExclude
-	applyAll(toExclude.skills, toExclude.attr, toExclude.cp, toExclude.cp, toExclude.cp, toExclude.hb, toExclude.gear, toExclude.qs)
+	applyAll(toExclude.skills, toExclude.attr, toExclude.cp, toExclude.cp, toExclude.cp, toExclude.hb, toExclude.gear, toExclude.qs, toExclude.outfit)
 end
 
 function CSPS.showApplyAllTooltip(control)
@@ -114,9 +116,10 @@ function CSPS.showApplyAllTooltip(control)
 	ZO_Tooltip_AddDivider(InformationTooltip)
 	local toExclude = CSPS.savedVariables.settings.applyAllExclude
 	local toExcludeTexts = {
-		skills = GS(SI_CHARACTER_MENU_SKILLS), attr = GS(SI_CHARACTER_MENU_STATS), cp = GS(SI_STAT_GAMEPAD_CHAMPION_POINTS_LABEL), hb = GS(SI_INTERFACE_OPTIONS_ACTION_BAR), gear = GS(SI_GAMEPAD_DYEING_EQUIPMENT_HEADER), qs = GS(SI_HOTBARCATEGORY10)
+		skills = GS(SI_CHARACTER_MENU_SKILLS), attr = GS(SI_CHARACTER_MENU_STATS), cp = GS(SI_STAT_GAMEPAD_CHAMPION_POINTS_LABEL), hb = GS(SI_INTERFACE_OPTIONS_ACTION_BAR), gear = GS(SI_GAMEPAD_DYEING_EQUIPMENT_HEADER), qs = GS(SI_HOTBARCATEGORY10), outfit = GetCollectibleCategoryNameByCategoryId(13),
 	}
 	local excludeOrder = {"skills", "attr", "cp", "hb", "gear", "qs"}
+	if CSPS.savedVariables.settings.showOutfits then table.insert(excludeOrder, "outfit") end
 	for i, v in pairs(excludeOrder) do
 		local r,g,b = CSPS.colors.orange:UnpackRGB()
 		if not toExclude[v] then			
@@ -142,7 +145,7 @@ function CSPS.loadAndApplyByName(profileName, excludeSkills, excludeAttributes, 
 end
 
 
-function CSPS.loadAndApplyByIndex(indexToLoad, excludeSkills, excludeAttributes, excludeGreenCP, excludeBlueCP, excludeRedCP, excludeHotbar, excludeGear, excludeQuickslots)
+function CSPS.loadAndApplyByIndex(indexToLoad, excludeSkills, excludeAttributes, excludeGreenCP, excludeBlueCP, excludeRedCP, excludeHotbar, excludeGear, excludeQuickslots, excludeOutfit)
 	if indexToLoad == 0 then
 		CSPSWindowBuildProfiles.comboBox:SetSelectedItem(GS(CSPS_Txt_StandardProfile))
 	else
@@ -150,5 +153,5 @@ function CSPS.loadAndApplyByIndex(indexToLoad, excludeSkills, excludeAttributes,
 	end 
 	CSPS.selectProfile(indexToLoad)
 	CSPS.loadBuild()
-	applyAll(excludeSkills, excludeAttributes, excludeGreenCP, excludeBlueCP, excludeRedCP, excludeHotbar, excludeGear, excludeQuickslots)
+	applyAll(excludeSkills, excludeAttributes, excludeGreenCP, excludeBlueCP, excludeRedCP, excludeHotbar, excludeGear, excludeQuickslots, excludeOutfit)
 end

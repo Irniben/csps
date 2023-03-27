@@ -133,9 +133,33 @@
 							<OnMouseUp>if upInside and button == 2 then CSPS.openTreeToSection(4, 2) end</OnMouseUp>
 							<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
 						</Button>
-						<Texture name="$(parent)QuickslotProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/menubar/gamepad/gp_playermenu_icon_collections.dds">
+						
+						<Texture name="$(parent)OutfitProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/restyle/gamepad/gp_dyes_tabicon_outfitstyledye.dds">
 							<Dimensions y="27" x="27" />
 							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)CPProfileBlue" offsetX="-5"/>							
+							<OnInitialized>self:SetTextureCoords(-0.03,1.03,-0.03,1.03) self:SetColor(CSPS.cpColors[7]:UnpackRGB()) self:SetAlpha(0.7)</OnInitialized>
+							<OnMouseUp>
+								self:SetTextureCoords(-0.03,1.03,-0.03,1.03) 
+								if upInside then 
+									self:SetAlpha(1) 
+									if button==1 then
+										CSPS.showSubProfileDiscipline(7) 
+									elseif button==2 then
+										CSPS.openTreeToSection(9)
+									end
+								end 
+								self.moDo = nil
+							</OnMouseUp>
+							<OnMouseDown>self:SetAlpha(0.7)  self:SetTextureCoords(-0.1,1.1,-0.1,1.1) self.moDo = true</OnMouseDown>
+							<OnMouseEnter>
+								if not self.moDo then self:SetAlpha(1) end 
+								ZO_Tooltips_ShowTextTooltip(self, RIGHT, string.format("%s\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s\n|t26:26:esoui/art/miscellaneous/icon_rmb.dds|t: %s", GetCollectibleCategoryNameByCategoryId(13), GetString(CSPS_SubProfiles_Edit), GetString(SI_GIFT_INVENTORY_VIEW_KEYBIND)))
+							</OnMouseEnter>
+							<OnMouseExit> self:SetAlpha(0.7) ZO_Tooltips_HideTextTooltip()</OnMouseExit>
+						</Texture>
+						<Texture name="$(parent)QuickslotProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/menubar/gamepad/gp_playermenu_icon_collections.dds">
+							<Dimensions y="27" x="27" />
+							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)OutfitProfiles" offsetX="-5"/>							
 							<OnInitialized>self:SetTextureCoords(-0.03,1.03,-0.03,1.03) self:SetColor(CSPS.cpColors[4]:UnpackRGB()) self:SetAlpha(0.7)</OnInitialized>
 							<OnMouseUp>
 								self:SetTextureCoords(-0.03,1.03,-0.03,1.03) 

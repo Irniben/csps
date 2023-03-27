@@ -14,6 +14,7 @@ CSPS = {
 		ZO_ColorDef:New(0.83137, 0.196078, 0.87451), --212/255, 50/255, 223/255	-- quickslots
 		ZO_ColorDef:New(0.784314, 0.635294, 0.392157), --(200/255, 162/255, 100/255 -- skills?
 		ZO_ColorDef:New(0.337255, 0.529412, 0.427451), -- gear 86, 135, 109 --gear
+		ZO_ColorDef:New(56/255, 126/255, 90/255), -- outfits 76,136,50 
 	},
 	colors = {
 		white = ZO_ColorDef:New(1,1,1),
@@ -343,6 +344,7 @@ function CSPS.showBuild(initOpen)
 	CSPS.hbRead()
 	CSPS.hbPopulate()
 	CSPS.readCurrentQS()
+	CSPS.outfits.read()
 	if not CSPS.tabEx then 
 		CSPS.createTable() 
 	end
@@ -391,6 +393,10 @@ function CSPS.saveBuildGo()
 	profileToSave.werte = skillTableClean
 	profileToSave.hbwerte = hbComp
 	profileToSave.attribute = attrComp
+	
+	if CSPS.savedVariables.settings.showOutfits then 
+		profileToSave.outfitComp = CSPS.outfits.compress()
+	end
 	
 	profileToSave.cp2werte = cpComp
 	profileToSave.cp2hbwerte = cpHbComp
@@ -631,6 +637,7 @@ function CSPS.loadBuild()
 	local hbComp = myProfile.hbwerte
 	local gearComp = myProfile.gearComp or ""
 	local gearCompUnique = myProfile.gearCompUnique
+	
 	CSPS.setMundus(myProfile.mundus)
 	CSPS.tableExtract(skillTableClean.prog, skillTableClean.pass)
 	
@@ -680,7 +687,11 @@ function CSPS.loadBuild()
 	if CSPS.doGear then
 		CSPS.setTheGear(CSPS.extractGearString(gearComp, gearCompUnique))
 	end
-
+	
+	if CSPS.savedVariables.settings.showOutfits and myProfile.outfitComp then 
+		CSPS.outfits.extract(myProfile.outfitComp)
+	end
+	
 	CSPS.refreshTree() 
 	CSPS.unsavedChanges = false
 end

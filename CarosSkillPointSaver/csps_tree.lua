@@ -22,6 +22,7 @@ local TREE_SECTION_CHAMPIONPOINTS = 4
 local TREE_SECTION_ATTRIBUTES = 6
 local TREE_SECTION_GEAR = 7
 local TREE_SECTION_QS = 8
+local TREE_SECTION_OUTFIT = 9
 
 local sectionNodes = {}
 
@@ -301,6 +302,10 @@ function CSPS.NodeSectionSetup(node, control, data, open, userRequested, enabled
 		myCtrText:SetColor(colTbl.white:UnpackRGBA())
 		sectionNodes[TREE_SECTION_QS] = sectionNodes[TREE_SECTION_QS] or node
 		CSPS.setupQsSection(control, node, data)
+	elseif data.variant == TREE_SECTION_OUTFIT then
+		myCtrText:SetColor(colTbl.white:UnpackRGBA())
+		sectionNodes[TREE_SECTION_OUTFIT] = sectionNodes[TREE_SECTION_OUTFIT] or node
+		CSPS.setupOutfitSection(control, node, data)
 	elseif data.variant == TREE_SECTION_CHAMPIONPOINTS then -- Champion Points section
 		sectionNodes[TREE_SECTION_CHAMPIONPOINTS] = sectionNodes[TREE_SECTION_CHAMPIONPOINTS] or {node}
 		if (CSPS.applyCP and CSPS.unlockedCP)  or (not CSPS.showApply) then 
@@ -664,6 +669,10 @@ function CSPS.createTable()
 	if CSPS.doGear then CSPS.setupGearTree() end
 	CSPS.setupQsTree()
 	
+	if CSPS.savedVariables.settings.showOutfits then
+		CSPS.setupOutfitTree() 
+	end
+		
 	CSPS.tabEx = true
 end
 

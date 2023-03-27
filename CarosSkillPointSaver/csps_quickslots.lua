@@ -15,6 +15,12 @@ local barCatsToApply = false
 local CSPS_qsCollectibleList = ZO_SortFilterList:Subclass()
 local qsCollectibleList = false
 
+local outfitCollectibleType = false
+local outfitSpecialCollectibleTypes = {
+	[COLLECTIBLE_CATEGORY_TYPE_MOUNT] = {4},
+	[COLLECTIBLE_CATEGORY_TYPE_VANITY_PET] = {3}			
+}
+
 local lastType, lastCategory = false, false
 
 local waitingForQSChanges = false
@@ -476,12 +482,17 @@ end
 function CSPS.cancelQuickSlotEdit()
 	CSPSWindowCollectibles:SetHidden(true)
 	slotToEdit = false
-	
+	outfitCollectibleType = false
 	CSPS.getTreeControl():RefreshVisible()
 end
 
 local function setQuickSlot(actionType, actionValue)
 	CSPSWindowCollectibles:SetHidden(true)
+	if outfitCollectibleType then
+		CSPS.outfits.setSlot(outfitCollectibleType, actionValue)
+		outfitCollectibleType = false
+		return
+	end
 	if not slotToEdit then return end
 	local slotData = qsBars[slotToEdit.bar][slotToEdit.slot] or {}
 	qsBars[slotToEdit.bar][slotToEdit.slot] = slotData
@@ -658,8 +669,9 @@ function CSPS_qsCollectibleList:BuildMasterList()
 		local function collectibleCategoryIterator(catData)
 			for i=1, catData:GetNumCollectibles() do
 				local collectibleData = catData:GetCollectibleDataByIndex(i)
-				if collectibleData:IsUnlocked() and not idsDone[collectibleData:GetId()] then
-					idsDone[collectibleData:GetId()] = true
+				local collectibleId = collectibleData:GetId()
+				if collectibleData:IsUnlocked() and not idsDone[collectibleId] and (not outfitCollectibleType or GetCollectibleCategoryType(collectibleId) == outfitCollectibleType) then
+					idsDone[collectibleId] = true
 					table.insert(self.masterList,
 						{
 							name = collectibleData:GetFormattedName(),
@@ -672,7 +684,7 @@ function CSPS_qsCollectibleList:BuildMasterList()
 								InformationTooltip:AddLine(collectibleData:GetDescription(), "ZoFontGame", r, g, b, CENTER, nil, TEXT_ALIGN_CENTER, SET_TO_FULL_SIZE)InformationTooltip:AddLine(GS(CSPS_QS_TT_Select))
 								InformationTooltip:AddLine(GS(CSPS_QS_TT_TestIt))
 							end,  
-							leftClickFunction = function() setQuickSlot(ACTION_TYPE_COLLECTIBLE, collectibleData:GetId()) end,
+							leftClickFunction = function() setQuickSlot(ACTION_TYPE_COLLECTIBLE, collectibleId) end,
 							rightClickFunction = function() 
 								if collectibleData:IsUsable(GAMEPLAY_ACTOR_CATEGORY_PLAYER) then
 									collectibleData:Use(GAMEPLAY_ACTOR_CATEGORY_PLAYER)
@@ -695,7 +707,9 @@ function CSPS_qsCollectibleList:BuildMasterList()
 		if currentCategory then 
 			insertCategory(currentCategory)
 		else
-			for _, v in pairs(collectibleCategoryIdByBarCat[barCategories[slotToEdit.bar]]) do
+			local collectibleCategories = outfitCollectibleType and (outfitSpecialCollectibleTypes[outfitCollectibleType] or {13}) or  collectibleCategoryIdByBarCat[barCategories[slotToEdit.bar]]
+			
+			for _, v in pairs(collectibleCategories) do
 				insertCategory(v)
 			end
 		end
@@ -807,7 +821,7 @@ local function updateCategoryCombo(myType)
 			table.insert(myTypes, {name = zo_strformat("<<C:1>>", v), value = i})
 		end
 	elseif myType == ACTION_TYPE_COLLECTIBLE then
-		local collectibleCategories = collectibleCategoryIdByBarCat[barCategories[slotToEdit.bar]]
+		local collectibleCategories = outfitCollectibleType and (outfitSpecialCollectibleTypes[outfitCollectibleType] or {13}) or  collectibleCategoryIdByBarCat[barCategories[slotToEdit.bar]]
 		for _, v in pairs(collectibleCategories) do
 			table.insert(myTypes, {name = zo_strformat("<<C:1>>", (ZO_COLLECTIBLE_DATA_MANAGER:GetCategoryDataById(v):GetName())), value = v})
 		end
@@ -849,7 +863,8 @@ local function updateTypeCombo()
 	local preSeletType = false
 	local numberTypes = 0
 	
-	for _, actionCategory in pairs(actionCatsForBarCats[barCategories[slotToEdit.bar]]) do
+	local actionCats = outfitCollectibleType and {ACTION_TYPE_COLLECTIBLE} or actionCatsForBarCats[barCategories[slotToEdit.bar]]
+	for _, actionCategory in pairs(actionCats) do
 		preSelectName = choosableCategoryNames[actionCategory]
 		typeComboBox:AddItem(typeComboBox:CreateItemEntry(preSelectName, function() OnItemSelect(actionCategory) end))
 		numberTypes = numberTypes + 1
@@ -881,8 +896,9 @@ local function setupCombos()
 	--CSPSWindowCollectiblesTypes:SetHandler("OnMouseExit", ZO_Options_OnMouseExit)
 end
 
-function CSPS.openCollectibleList()
-	
+function CSPS.openCollectibleList(setOutfitCollectibleType)
+	outfitCollectibleType = setOutfitCollectibleType
+
 	--Categories
 	CSPSWindowCollectiblesCategories:SetHidden(true)
 	CSPSWindowCollectiblesList:SetHidden(true)
@@ -939,7 +955,7 @@ local function NodeSetupQS(node, control, data, open, userRequested, enabled)
 					InformationTooltip:AddLine(v, "ZoFontGame", r, g, b, CENTER, nil, TEXT_ALIGN_CENTER, SET_TO_FULL_SIZE)
 				end
 			end
-			InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit))
+			InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit)) 
 		end
 	else
 		control.tooltipFunction = function() ZO_Tooltips_ShowTextTooltip(ctrText, TOP, GS(CSPS_QS_TT_Edit)) end

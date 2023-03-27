@@ -25,7 +25,37 @@
 				</Label>
 			</Controls>
 		</Control>
-	
+		<Control name="CSPSOutfitLE" inherits="ZO_TreeEntry" virtual="true">
+			<Dimensions  y="34" />
+			<Controls>
+				<Texture name="$(parent)Icon" mouseEnabled="true">
+					<Dimensions x="30" y="30" />
+				      <Anchor point="TOPLEFT" relativeTo="$(parent)" relativePoint="TOPLEFT" offsetY="4" />
+					  <OnMouseEnter>if self:GetParent().tooltipFunction then self:GetParent():tooltipFunction() end</OnMouseEnter>
+					  <OnMouseUp>self:GetParent():GetHandler("OnMouseUp")(self, button, upInside, ctrl, alt, shift)</OnMouseUp>
+					  <OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Texture>	
+				<Texture name="$(parent)Indicator">
+					<Dimensions x="18" y="18" />
+				    <Anchor point="BOTTOM" relativeTo="$(parent)Icon" relativePoint="BOTTOMRIGHT" offsetY="0" />
+				</Texture>	
+				<Button name="$(parent)BtnMinus">
+					<Dimensions y="28" x="28" />
+					<Anchor point="CENTER" relativePoint="CENTER" relativeTo="$(parent)Icon" constrains="Y" />
+					<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="CSPSWindowScrollListScrollBar" constrains="X" offsetX="-4"/>
+					<Textures normal="ESOUI/art/buttons/minus_up.dds" pressed="ESOUI/art/buttons/minus_down.dds" mouseOver="ESOUI/art/buttons/minus_over.dds" />
+					<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Button>
+				<Label name="$(parent)Text" font="ZoFontGame" mouseEnabled="true" linkEnabled="true">
+					<Dimensions y="32" />
+					<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Icon" offsetX="11"/>
+					<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)BtnMinus" offsetX="-2" constrains="X"/>
+					<OnMouseUp>self:GetParent():GetHandler("OnMouseUp")(self, button, upInside, ctrl, alt, shift)</OnMouseUp>
+					<OnMouseEnter>if self:GetParent().tooltipFunction then self:GetParent():tooltipFunction() end</OnMouseEnter>
+					<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Label>
+			</Controls>
+		</Control>
 		<Control name="CSPSQSLE" inherits="ZO_TreeEntry" virtual="true">
 			<Dimensions  y="34" />
 			<Controls>
