@@ -320,7 +320,7 @@ function CSPS.setupLam()
 					type = "checkbox",
 					name = GS(SI_GAMEPAD_DYEING_EQUIPMENT_HEADER),
 					width = "full",
-					getFunc = function() return not options.applyAllExclude.gear end,
+					getFunc = function() return CSPS.doGear and not options.applyAllExclude.gear end,
 					setFunc = function(value) 
 							options.applyAllExclude.gear = not value
 						end,

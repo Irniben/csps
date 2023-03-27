@@ -90,7 +90,7 @@ local function applyAll(excludeSkills, excludeAttributes, excludeGreenCP, exclud
 		cp.applyGo(true)
 	end
 	
-	if not excludeGear then CSPS.equipAllFittingGear() end
+	if not excludeGear and CSPS.doGear then CSPS.equipAllFittingGear() end
 	if CSPS.savedVariables.settings.showOutfits and not excludeOutfit then CSPS.outfits.apply() end
 	
 	if not excludeQuickslots then 
@@ -118,7 +118,9 @@ function CSPS.showApplyAllTooltip(control)
 	local toExcludeTexts = {
 		skills = GS(SI_CHARACTER_MENU_SKILLS), attr = GS(SI_CHARACTER_MENU_STATS), cp = GS(SI_STAT_GAMEPAD_CHAMPION_POINTS_LABEL), hb = GS(SI_INTERFACE_OPTIONS_ACTION_BAR), gear = GS(SI_GAMEPAD_DYEING_EQUIPMENT_HEADER), qs = GS(SI_HOTBARCATEGORY10), outfit = GetCollectibleCategoryNameByCategoryId(13),
 	}
-	local excludeOrder = {"skills", "attr", "cp", "hb", "gear", "qs"}
+	local excludeOrder = {"skills", "attr", "cp", "hb"} -- last three entries inserted manually
+	if CSPS.doGear then table.insert(excludeOrder, "gear") end
+	table.insert(excludeOrder, "qs")
 	if CSPS.savedVariables.settings.showOutfits then table.insert(excludeOrder, "outfit") end
 	for i, v in pairs(excludeOrder) do
 		local r,g,b = CSPS.colors.orange:UnpackRGB()
