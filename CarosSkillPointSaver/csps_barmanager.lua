@@ -920,16 +920,20 @@ function CSPS.initConnect()
 		
 	
 	local disciplineNames = {GS(SI_CHARACTER_MENU_SKILLS), GS(SI_CHARACTER_MENU_STATS), false, false, false, -- don't apply the loop to the cp checkboxes
-		GS(SI_INTERFACE_OPTIONS_ACTION_BAR), GS(SI_GAMEPAD_DYEING_EQUIPMENT_HEADER), GS(SI_HOTBARCATEGORY10)}
+		GS(SI_INTERFACE_OPTIONS_ACTION_BAR), GS(SI_GAMEPAD_DYEING_EQUIPMENT_HEADER), GS(SI_HOTBARCATEGORY10), GetCollectibleCategoryNameByCategoryId(13)}
 	
 	local cpDiscReroute = {[3] = 2, [4] = 3, [5] = 1}
+	
+	local allButtons = {}
 		
-	for i=1, 8 do
+	for i=1, 9 do
 		local chkButton = CSPSWindowManageBarsDiscsSpecial:GetNamedChild("Include"..i)
-		
+		allButtons[i] = chkButton
 		if disciplineNames[i] then -- = if not CP
 			chkButton.setStateFunc = function(value) ZO_CheckButton_SetCheckState(chkButton, value and 1 or 0) end
 			ZO_CheckButton_SetLabelText(chkButton, disciplineNames[i])
+			chkButton.label:SetHeight(24)
+			chkButton.label:SetWrapMode(1)
 			ZO_CheckButton_SetTooltipText(chkButton, disciplineNames[i])
 			ZO_CheckButton_SetToggleFunction(chkButton, function(_, value) 
 				CSPS.spHotkeysC[currentGroup][5][i] = not value or nil
@@ -938,6 +942,15 @@ function CSPS.initConnect()
 			chkButton.setStateFunc = function(value) CSPS.barManagerSetCP(chkButton, i, true) end
 		end
 	end	
+	-- top row: Include1, 6, 2, 9
+	allButtons[1].label:SetAnchor(RIGHT, allButtons[6], LEFT, -3, 0, ANCHOR_CONSTRAINS_X )
+	allButtons[6].label:SetAnchor(RIGHT, allButtons[2], LEFT, -3, 0, ANCHOR_CONSTRAINS_X )
+	allButtons[2].label:SetAnchor(RIGHT, allButtons[9], LEFT, -3, 0, ANCHOR_CONSTRAINS_X )
+	allButtons[9].label:SetAnchor(RIGHT, CSPSWindowManageBarsDiscsSpecial, RIGHT, -3, 0, ANCHOR_CONSTRAINS_X )
+	allButtons[7].label:SetAnchor(RIGHT, allButtons[8], LEFT, -3, 0, ANCHOR_CONSTRAINS_X )
+	allButtons[8].label:SetAnchor(RIGHT, CSPSWindowManageBarsDiscsSpecial, RIGHT, -3, 0, ANCHOR_CONSTRAINS_X )
+	
+	if not CSPS.doGear then CSPSWindowManageBarsDiscsSpecialInclude7:SetHidden(true) end
 		
 	CSPS.setBarManagerAccountMode(CSPS.savedVariables.settings.barManagerAccountMode) -- includes refreshGroups
 	
@@ -1000,7 +1013,7 @@ function CSPS.barManagerShowSpecialDisc(show)
 	
 	if profileIndex then
 		comboBox:SetSelectedItem(profileIndex > 0 and CSPS.profiles[profileIndex].name or GS(CSPS_Txt_StandardProfile))
-		for i=1, 8 do
+		for i=1, 9 do
 			local chkButton = CSPSWindowManageBarsDiscsSpecial:GetNamedChild("Include"..i)
 			chkButton:SetHidden(false)
 			chkButton.setStateFunc(not CSPS.spHotkeysC[currentGroup] or not CSPS.spHotkeysC[currentGroup][5] or not CSPS.spHotkeysC[currentGroup][5][i])
@@ -1008,7 +1021,7 @@ function CSPS.barManagerShowSpecialDisc(show)
 		CSPSWindowManageBarsDiscsSpecialIncludeCPLabel:SetHidden(false)
 	else
 		comboBox:SetSelectedItem("-")
-		for i=1, 8 do
+		for i=1, 9 do
 			CSPSWindowManageBarsDiscsSpecial:GetNamedChild("Include"..i):SetHidden(true)
 		end
 		CSPSWindowManageBarsDiscsSpecialIncludeCPLabel:SetHidden(true)

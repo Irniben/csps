@@ -469,13 +469,15 @@ local function importCompressed()
 	
 	if compTable[7] and not invalidStr[compTable[7]] and partTable.quickslots then CSPS.extractQS(compTable[7], CSPS.getQsBars()) end
 	
+	if compTable[8] and not invalidStr[compTable[8]] and partTable.outfit then CSPS.outfits.extract(compTable[8]) end
+	
 	CSPS.refreshTree() 
 	CSPS.toggleImportExport(false)
 end
 
 local function exportCompressed()
 	local partTable = CSPS.savedVariables.settings.importExportParts -- skills, hotbar, attributes , mundus, cp, gear, quickslots
-	local compTable = {"-", "-", "-", "-", "-", "-", "-"}
+	local compTable = {"-", "-", "-", "-", "-", "-", "-", "-"}
 	
 	if partTable.skills then 
 		local skillTable = CSPS.compressLists()
@@ -501,6 +503,8 @@ local function exportCompressed()
 	if CSPS.doGear and partTable.gear then compTable[6] = CSPS.buildGearString() or "-" end
 		
 	if partTable.quickslots then compTable[7] = CSPS.compressQS(CSPS.getQsBars()) or "-" end
+	
+	if partTable.outfit then compTable[8] = CSPS.outfits.compress() end
 	
 	CSPSWindowImportExportTextEdit:SetText(table.concat(compTable, "#"))
 end

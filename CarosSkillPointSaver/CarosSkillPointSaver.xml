@@ -67,7 +67,7 @@
 						</Button>
 						<Button name="$(parent)Save" hidden="true">
 							<Dimensions y="29" x="29" />
-							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Show" offsetX="5"/>
+							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Show" offsetX="3"/>
 							<Textures normal="esoui\art\mail\mail_tabicon_compose_up.dds" pressed="esoui\art\mail\mail_tabicon_compose_down.dds" mouseOver="esoui\art\mail\mail_tabicon_compose_over.dds" />
 							<OnClicked>CSPS.saveBuild()</OnClicked>
 							<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_Save))</OnMouseEnter>
@@ -75,7 +75,7 @@
 						</Button>		
 						<Button name="$(parent)Load">
 							<Dimensions y="29" x="29" />
-							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Save" offsetX="5"/>
+							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Save" offsetX="3"/>
 							<Textures normal="esoui\art\mail\mail_tabicon_inbox_up.dds" pressed="esoui\art\mail\mail_tabicon_inbox_down.dds" mouseOver="esoui\art\mail\mail_tabicon_inbox_over.dds" />
 							<OnClicked>CSPS.loadBuild()</OnClicked>
 							<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_Load))</OnMouseEnter>
@@ -83,11 +83,11 @@
 						</Button>
 						<Control name="$(parent)Profiles" inherits="ZO_ComboBox" >
 							<Dimensions x="170" y="25" />
-							<Anchor point="LEFT" relativeTo="$(parent)Load" relativePoint="RIGHT" offsetX="5" offsetY="0"/>
+							<Anchor point="LEFT" relativeTo="$(parent)Load" relativePoint="RIGHT" offsetX="3" offsetY="0"/>
                         </Control>
 						<Button name="$(parent)ProfilePlus">
 							<Dimensions y="27" x="27" />
-							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Profiles" offsetX="5"/>
+							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Profiles" offsetX="3"/>
 							<Textures normal="ESOUI/art/buttons/plus_up.dds" pressed="ESOUI/art/buttons/plus_down.dds" mouseOver="ESOUI/art/buttons/plus_over.dds" />
 							<OnClicked>CSPS.profilePlus()</OnClicked>
 							<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_AddProfile))</OnMouseEnter>
@@ -95,7 +95,7 @@
 						</Button>
 						<Button name="$(parent)ProfileRename" hidden="true"> 
 							<Dimensions y="27" x="27" />
-							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)ProfilePlus" offsetX="5"/>
+							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)ProfilePlus" offsetX="3"/>
 							<Textures normal="esoui\art\buttons\edit_up.dds" pressed="esoui\art\buttons\edit_down.dds" mouseOver="esoui\art\buttons\edit_over.dds" />
 							<OnClicked>CSPS.profileRename()</OnClicked>
 							<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_RenameProfile))</OnMouseEnter>
@@ -103,7 +103,7 @@
 						</Button>
 						<Button name="$(parent)ProfileMinus" hidden="true">
 							<Dimensions y="27" x="27" />
-							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)ProfileRename" offsetX="5"/>
+							<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)ProfileRename" offsetX="3"/>
 							<Textures normal="ESOUI/art/buttons/minus_up.dds" pressed="ESOUI/art/buttons/minus_down.dds" mouseOver="ESOUI/art/buttons/minus_over.dds" />
 							<OnClicked>CSPS.profileMinus()</OnClicked>
 							<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_DeleteProfile))</OnMouseEnter>
@@ -136,7 +136,7 @@
 						
 						<Texture name="$(parent)OutfitProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/restyle/gamepad/gp_dyes_tabicon_outfitstyledye.dds">
 							<Dimensions y="27" x="27" />
-							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)CPProfileBlue" offsetX="-5"/>							
+							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)CPProfileBlue" offsetX="-3"/>							
 							<OnInitialized>self:SetTextureCoords(-0.03,1.03,-0.03,1.03) self:SetColor(CSPS.cpColors[7]:UnpackRGB()) self:SetAlpha(0.7)</OnInitialized>
 							<OnMouseUp>
 								self:SetTextureCoords(-0.03,1.03,-0.03,1.03) 
@@ -159,7 +159,7 @@
 						</Texture>
 						<Texture name="$(parent)QuickslotProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/menubar/gamepad/gp_playermenu_icon_collections.dds">
 							<Dimensions y="27" x="27" />
-							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)OutfitProfiles" offsetX="-5"/>							
+							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)OutfitProfiles" offsetX="-3"/>							
 							<OnInitialized>self:SetTextureCoords(-0.03,1.03,-0.03,1.03) self:SetColor(CSPS.cpColors[4]:UnpackRGB()) self:SetAlpha(0.7)</OnInitialized>
 							<OnMouseUp>
 								self:SetTextureCoords(-0.03,1.03,-0.03,1.03) 
@@ -182,7 +182,7 @@
 						</Texture>
 						<Texture name="$(parent)GearProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/armory/builditem_icon.dds">
 							<Dimensions y="27" x="27" />
-							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)QuickslotProfiles" offsetX="-5"/>						
+							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)QuickslotProfiles" offsetX="-3"/>						
 							<OnInitialized>self:SetColor(CSPS.cpColors[6]:UnpackRGB()) self:SetAlpha(0.7) self:SetTextureCoords(0,1,0,1)</OnInitialized>
 							<OnMouseUp>
 								self:SetTextureCoords(0,1,0,1) 
@@ -205,7 +205,7 @@
 						</Texture>
 						<Texture name="$(parent)SkillProfiles" hidden="false" layer="1" mouseEnabled="true" textureFile="ESOUI/art/menubar/gamepad/gp_playermenu_icon_skills.dds">
 							<Dimensions y="27" x="27" />
-							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)GearProfiles" offsetX="-5"/>						
+							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(parent)GearProfiles" offsetX="-3"/>						
 							<OnInitialized>self:SetColor(CSPS.cpColors[5]:UnpackRGB()) self:SetAlpha(0.7) self:SetTextureCoords(0.1,0.9,0.1,0.9)</OnInitialized>
 							<OnMouseUp>
 								self:SetTextureCoords(0.1,0.9,0.1,0.9) 
@@ -864,7 +864,6 @@
 									<Anchor point="BOTTOMRIGHT" relativeTo="$(parent)BGD4" relativePoint="BOTTOMLEFT" offsetX="-16" offsetY="0" />
 									<Edge edgeSize="1" />
 									<Controls>
-										
 										<Label name="$(parent)LblBuildProfile"  text="CSPS_BuildProfile" font="ZoFontGame">
 											<Dimensions y="25" />
 											<Anchor point="TOPLEFT" relativeTo="$(parent)" relativePoint="TOPLEFT" offsetX="4"  offsetY="8"  />
@@ -874,22 +873,33 @@
 											<Dimensions y="25" />
 											<Anchor point="LEFT" relativeTo="$(parent)LblBuildProfile" relativePoint="RIGHT" offsetX="8" />
 											<Anchor point="RIGHT" relativeTo="$(parent)" relativePoint="RIGHT" constrains="X" offsetX="-8" />
-										</Control>			
+										</Control>		
+										
+										<Control name="$(parent)Placeholder1">
+											<Anchor point="LEFT" relativeTo="$(parent)" relativePoint="LEFT" />
+											<Anchor point="RIGHT" relativeTo="$(parent)" relativePoint="CENTER" />
+										</Control>
+										
+										<Control name="$(parent)Placeholder2">
+											<Anchor point="LEFT" relativeTo="$(parent)" relativePoint="CENTER" />
+											<Anchor point="RIGHT" relativeTo="$(parent)" relativePoint="RIGHT" />
+										</Control>	
 										
 										<Button name="$(parent)Include1" inherits="ZO_CheckButton">
 											<Anchor point="LEFT" relativeTo="$(parent)" relativePoint="LEFT" offsetX="4" />
 										</Button>
 										
 										<Button name="$(parent)Include6" inherits="ZO_CheckButton">
-											<Anchor point="CENTER" relativeTo="$(parent)" relativePoint="CENTER" constrains="Y"  />
-											<Anchor point="LEFT" relativeTo="CSPSWindowManageBarsDisc3" relativePoint="LEFT" constrains="X" offsetX="4" />
+											<Anchor point="LEFT" relativeTo="$(parent)Placeholder1" relativePoint="CENTER"  />
 										</Button>
 										
 										<Button name="$(parent)Include2" inherits="ZO_CheckButton">
-											<Anchor point="CENTER" relativeTo="$(parent)" relativePoint="CENTER" constrains="Y"  />
-											<Anchor point="LEFT" relativeTo="CSPSWindowManageBarsDisc1" relativePoint="LEFT" constrains="X" offsetX="4" />
+											<Anchor point="LEFT" relativeTo="$(parent)Placeholder2" relativePoint="LEFT"  />
 										</Button>
 										
+										<Button name="$(parent)Include9" inherits="ZO_CheckButton">
+											<Anchor point="LEFT" relativeTo="$(parent)Placeholder2" relativePoint="CENTER" />
+										</Button>
 										
 										<Texture name="$(parent)Include4" layer="1" textureFile="esoui/art/buttons/checkbox_unchecked.dds" color="5CBDE7" mouseEnabled="true" >
 											<Dimensions y="17" x="17" />
@@ -900,6 +910,7 @@
 											<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_CP1))</OnMouseEnter>
 											<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
 										</Texture>
+										
 										<Texture name="$(parent)Include5" layer="1" textureFile="esoui/art/buttons/checkbox_checked.dds" color="DE6531" mouseEnabled="true" >
 											<Dimensions y="17" x="17" />
 											<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Include4" offsetX="4"  />
@@ -934,7 +945,7 @@
 											<Anchor point="CENTER" relativeTo="$(parent)Include4" relativePoint="CENTER" constrains="Y"   />
 											<Anchor point="LEFT" relativeTo="CSPSWindowManageBarsDisc1" relativePoint="LEFT" constrains="X" offsetX="4" />
 										</Button>
-										
+																				
 									</Controls>
 									
 								</Backdrop>
@@ -1303,6 +1314,21 @@
 								<Label name="$(parent)LblQuickSlots" font="ZoFontGame"  color="INTERFACE_COLOR_TYPE_TEXT_COLORS:INTERFACE_TEXT_COLOR_NORMAL"  text="SI_HOTBARCATEGORY10" wrapMode="1">
 									<Dimensions y="24" />
 									<Anchor point="LEFT" relativeTo="$(parent)ChkQuickSlots" relativePoint="RIGHT" offsetX="3"  />
+									<Anchor point="RIGHT" relativeTo="$(parent)Placeholder2" relativePoint="CENTER" offsetX="-3" constrains="X"  />
+								</Label>	
+								
+								<Button name="$(parent)ChkOutfit">   
+									<Dimensions y="17" x="17" /> 
+									<Anchor point="TOPLEFT" relativeTo="$(parent)ChkMundus" relativePoint="BOTTOMLEFT" offsetY="5"  />
+									<Textures normal="esoui/art/buttons/checkbox_checked.dds" pressed="esoui/art/buttons/checkbox_checked.dds" mouseOver="esoui/art/buttons/checkbox_checked.dds" />
+									<OnClicked>CSPS.toggleCPImpExpParts("outfit")</OnClicked>
+									<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
+								</Button>	
+								<Label name="$(parent)LblOutfit" font="ZoFontGame"  color="INTERFACE_COLOR_TYPE_TEXT_COLORS:INTERFACE_TEXT_COLOR_NORMAL"  text="" wrapMode="1">
+									<Dimensions y="24" />
+									<OnInitialized>self:SetText(GetCollectibleCategoryNameByCategoryId(13))</OnInitialized>
+									<Anchor point="LEFT" relativeTo="$(parent)ChkOutfit" relativePoint="RIGHT" offsetX="3"  />
+									<Anchor point="RIGHT" relativeTo="$(parent)Placeholder2" relativePoint="RIGHT" offsetX="-3" constrains="X"  />
 								</Label>	
 
 						

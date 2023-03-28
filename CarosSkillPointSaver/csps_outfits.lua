@@ -18,6 +18,8 @@ local outfitCollectibleTypes = {
 	COLLECTIBLE_CATEGORY_TYPE_VANITY_PET,
 }
 
+local dyeColor = ZO_ColorDef:New(1,1,1)
+
 outfits.current = {}
 
 local function getMonturName(monturIndex)
@@ -71,7 +73,7 @@ function outfits.addToTooltip(outfitTable)
 	outfitTable = outfitTable or outfits.current	
 	local outfitName = getMonturName(outfitTable.montur)
 	InformationTooltip:AddLine(string.format("%s: %s", GS(SI_OUTFIT_SELECTOR_TITLE), outfitName), "ZoFontGame")
-	InformationTooltip:AddLine(string.format("%s: %s", GS(SI_STATS_TITLE), GetTitle(outfitTable.title or 0) or "-"), "ZoFontGame")
+	InformationTooltip:AddLine(zo_strformat("<<C:1>> <<C:2>>", GS(SI_STATS_TITLE), GetTitle(outfitTable.title or 0) or "-"), "ZoFontGame")
 	for outfitCollectibleType, collectibleId in pairs(outfitTable.slots) do
 		InformationTooltip:AddLine(string.format("%s: %s", GS("SI_COLLECTIBLECATEGORYTYPE", outfitCollectibleType), GetCollectibleLink(collectibleId)), "ZoFontGame")
 	end
@@ -122,30 +124,60 @@ end
 
 local function getAchievementListByTitles(titleTable)
 	local achievementIds = {}
+	local dungeonAchieve = {}
+	local trialAchieve = {}
+	local otherTitles = {}
 	
-	for achievementTopLevelIndex=1, GetNumAchievementCategories() do
+	local numCategories = GetNumAchievementCategories()
+	for achievementTopLevelIndex=1, numCategories do
 		local _, numSubCats, numAchievements = GetAchievementCategoryInfo(achievementTopLevelIndex)
 		local function checkAchievement(achievementId) 
-			local _, achievedTitle =  GetAchievementRewardTitle(achievementId)
+			local hasTitle, achievedTitle =  GetAchievementRewardTitle(achievementId)
 			
-			if titleTable[achievedTitle] then
+			if hasTitle and not titleTable or titleTable and titleTable[achievedTitle] then
 				achievementIds[achievedTitle] = achievementId
+				return achievedTitle
 			end
 		end
 		for achievementIndex=1, numAchievements do
 			local achievementId = GetAchievementId(achievementTopLevelIndex, nil, achievementIndex)
-			checkAchievement(achievementId)
+			local achievedTitle = checkAchievement(achievementId)
+			if achievedTitle then
+				if achievementTopLevelIndex == 5 then 
+					table.insert(dungeonAchieve, achievedTitle) 
+				else
+					local points = GetAchievementRewardPoints(achievementId)
+					otherTitles[points] = otherTitles[points] or {}
+					table.insert(otherTitles[points], achievedTitle)
+				end	
+			end 
 		end
+		local auxSubCats = numAchievements == 0 and numSubCats - 1 or numSubCats
 		for subCategoryIndex=1, numSubCats do
-			local _, numAchievements = GetAchievementSubCategoryInfo(achievementTopLevelIndex, subCategoryIndex)
-			for achievementIndex=1, numAchievements do
+			local _, numSubAchievements = GetAchievementSubCategoryInfo(achievementTopLevelIndex, subCategoryIndex)
+			for achievementIndex=1, numSubAchievements do
 				local achievementId = GetAchievementId(achievementTopLevelIndex, subCategoryIndex, achievementIndex)
-				checkAchievement(achievementId)
+				local achievedTitle = checkAchievement(achievementId)
+				if achievedTitle then
+					if achievementTopLevelIndex == 4 and subCategoryIndex == 1 or achievementTopLevelIndex > 10 and auxSubCats > 2 and subCategoryIndex == auxSubCats then
+						table.insert(trialAchieve, achievedTitle)
+					elseif achievementTopLevelIndex > 10 and auxSubCats == 1 then 
+						table.insert(dungeonAchieve, achievedTitle) 
+						-- this won't give us the dungeons from imperial city, but they don't have titles anyway... 
+						-- and I really didn't want to hardcode the achievementIds...
+					else
+						local points = GetAchievementRewardPoints(achievementId)
+						otherTitles[points] = otherTitles[points] or {}
+						table.insert(otherTitles[points], achievedTitle)
+					end
+				end
 			end
 		end
 	end
-	return achievementIds
+	return achievementIds, dungeonAchieve, trialAchieve, otherTitles
 end
+
+CSPS.getAL = getAchievementListByTitles
 
 local function getAchievementByTitle(title)
 	if not title or title == "" then return false end
@@ -191,10 +223,27 @@ function outfits.showTitleMenu()
 		sortedTitleListNames[listIndex] = string.format("%s-%s", string.sub(subList[1], 1,1), string.sub(subList[#subList], 1,1))
 	end
 	
-	local achievementIds = getAchievementListByTitles(titlesByName)
-			
+	local achievementIds, dungeonAchieve, trialAchieve, otherTitles = getAchievementListByTitles(titlesByName)
+	
+	table.sort(dungeonAchieve)
+	table.sort(trialAchieve)
+	table.insert(sortedTitleNames, dungeonAchieve)
+	local placeholderPosition = #sortedTitleNames
+	table.insert(sortedTitleListNames, string.format("%s (%s)", GS(SI_CONSOLEACTIVITYTYPE1), GS(SI_DUNGEONDIFFICULTY2)))
+	table.insert(sortedTitleNames, trialAchieve)
+	table.insert(sortedTitleListNames, string.format("%s", GS(SI_INSTANCEDISPLAYTYPE3)))
+	
+	for i, v in pairs({5,10,15,50}) do
+		if otherTitles[v] then
+			table.sort(otherTitles[v])
+			table.insert(sortedTitleNames, otherTitles[v])
+			table.insert(sortedTitleListNames, string.format("%s (%s %s)", GS(SI_FURNITURETHEMETYPE1), v, GS(	SI_GUILD_RECRUITMENT_ACHIEVEMENT_POINTS_HEADER)))
+		end
+	end
+	
 	ClearMenu()
 	for listIndex, subList in pairs(sortedTitleNames) do
+		if listIndex == placeholderPosition then AddCustomMenuItem("-", function() end) end
 		local subMenu = {}
 		for _, titleName in pairs(subList) do
 			local achievementId = achievementIds[titleName]
@@ -204,10 +253,10 @@ function outfits.showTitleMenu()
 					if not inside then ClearTooltip(InformationTooltip) return "" end
 					local name, description, _, texture = GetAchievementInfo(achievementId)
 					InitializeTooltip(InformationTooltip, control, LEFT, 0, 15, RIGHT)
-					InformationTooltip:AddLine(zo_strformat("<<C:1>>", name), "ZoFontWinH2")
-					InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", texture), "ZoFontGame")
+					InformationTooltip:AddLine(zo_strformat("<<C:1>>", name), "ZoFontWinH2",  nil, nil, nil, CENTER, nil, TEXT_ALIGN_CENTER, SET_TO_FULL_SIZE)
+					InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", texture), "ZoFontGame",  nil, nil, nil, CENTER, nil, TEXT_ALIGN_CENTER, SET_TO_FULL_SIZE)
 					ZO_Tooltip_AddDivider(InformationTooltip)
-					InformationTooltip:AddLine(description, "ZoFontGame")
+					InformationTooltip:AddLine(zo_strformat("<<1>>", description), "ZoFontGame",  nil, nil, nil, CENTER, nil, TEXT_ALIGN_CENTER, SET_TO_FULL_SIZE)
 					return ""
 				end
 			end
@@ -244,11 +293,41 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 	end)
 	if data.isMontur then
 		local monturName = getMonturName(outfits.current.montur)	
-		control.tooltipFunction = function() ZO_Tooltips_ShowTextTooltip(ctrText, RIGHT, GS(CSPS_QS_TT_Edit)) end
 		if outfits.current.montur and outfits.current.montur ~= 0 then
+			control.tooltipFunction = function()
+				InitializeTooltip(InformationTooltip, ctrText, LEFT, 0, 0, RIGHT)
+				InformationTooltip:AddLine(zo_strformat("<<C:1>>", monturName), "ZoFontWinH2")
+				ZO_Tooltip_AddDivider(InformationTooltip)
+				for i=1, 31 do
+					local collectibleId, _, dye1, dye2, dye3 = GetOutfitSlotInfo(GAMEPLAY_ACTOR_CATEGORY_PLAYER, outfits.current.montur, i)
+					local dyes = {dye1, dye2, dye3}
+					if collectibleId and collectibleId > 0 then
+						local partName = GetCollectibleLink(collectibleId)
+						
+						local colorNames = {}
+						for j=1,3 do
+							if dyes[j] and dyes[j] ~= 0 then 
+								local dyeName, _, _, _, _, r,g,b = GetDyeInfoById(dyes[j])
+								dyeColor:SetRGB(r,g,b)
+								dyeName = dyeColor:Colorize("|t24:24:esoui/art/dye/gamepad/dye_circle.dds:inheritcolor|t")
+								table.insert(colorNames, dyeName)							
+							end 
+						end
+
+						if #colorNames > 0 then
+							partName = string.format("%s (%s)", partName, table.concat(colorNames, "/"))
+						end
+						
+						InformationTooltip:AddLine(string.format("|t32:32:%s|t %s", GetCollectibleIcon(collectibleId), partName), "ZoFontGame")
+						
+					
+					end
+				end	
+			end
 			ctrMinus:SetHidden(false)
 			ctrMinus:SetHandler("OnClicked", function() outfits.current.montur = 0 CSPS.refreshTree() end)
 		else
+			control.tooltipFunction = function() ZO_Tooltips_ShowTextTooltip(ctrText, RIGHT, GS(CSPS_QS_TT_Edit)) end
 			ctrMinus:SetHidden(true)
 		end
 		ctrText:SetText(string.format("%s: %s", GS(SI_OUTFIT_SELECTOR_TITLE), monturName))
@@ -270,8 +349,8 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 					local achievementName, achievementDescription, _, achievementTexture = GetAchievementInfo(achievementId)
 					ZO_Tooltip_AddDivider(InformationTooltip)
 					InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", achievementTexture), "ZoFontGame")
-					InformationTooltip:AddLine(achievementName, "ZoFontWinH3")
-					InformationTooltip:AddLine(achievementDescription, "ZoFontGame")			
+					InformationTooltip:AddLine(zo_strformat("<<C:1>>", achievementName), "ZoFontWinH3")
+					InformationTooltip:AddLine(zo_strformat("<<1>>", achievementDescription), "ZoFontGame")			
 					InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit), "ZoFontGame")		
 				end
 			end
@@ -332,6 +411,7 @@ end
 function outfits.toggleShowInTree()
 	CSPSWindowBuildOutfitProfiles:SetHidden(not CSPS.savedVariables.settings.showOutfits)
 	CSPSWindowBuildOutfitProfiles:SetWidth(CSPS.savedVariables.settings.showOutfits and 27 or 0)
+	CSPSWindowManageBarsDiscsSpecialInclude9:SetHidden(not CSPS.savedVariables.settings.showOutfits)
 	if not CSPS.tabEx then return end
 	local myNode = CSPS.sectionNodes[9]
 	if CSPS.savedVariables.settings.showOutfits then

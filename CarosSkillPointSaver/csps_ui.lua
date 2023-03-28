@@ -651,7 +651,8 @@ function CSPS.toggleCPImpExpParts(arg)
 		mundus = "ChkMundus",
 		cp = "ChkCp",
 		gear = "ChkGear",
-		quickslots = "ChkQuickSlots"
+		quickslots = "ChkQuickSlots",
+		outfit = "ChkOutfit",
 	}
 	for i, v in pairs(partTable) do
 		toggleCheckbox(string.format("ImportExportSelectParts%s", partControls[i]), v)
