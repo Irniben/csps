@@ -302,8 +302,8 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 					local collectibleId, _, dye1, dye2, dye3 = GetOutfitSlotInfo(GAMEPLAY_ACTOR_CATEGORY_PLAYER, outfits.current.montur, i)
 					local dyes = {dye1, dye2, dye3}
 					if collectibleId and collectibleId > 0 then
-						local partName = GetCollectibleLink(collectibleId)
-						
+						local partName = zo_strformat("<<C:1>>", GetCollectibleName(collectibleId))
+						if string.len(partName) > 24 then partName = string.sub(partName, 1, 21).."..." end
 						local colorNames = {}
 						for j=1,3 do
 							if dyes[j] and dyes[j] ~= 0 then 
