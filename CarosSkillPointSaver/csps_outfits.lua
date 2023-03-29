@@ -289,6 +289,20 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 			elseif data.isMontur then
 				outfits.showMonturMenu()
 			end
+		elseif button == 1 then
+			local myShiftKey = CSPS.savedVariables.settings.jumpShiftKey or 7
+			myShiftKey = myShiftKey == 7 and shift or myShiftKey == 4 and ctrl or myShiftKey == 5 and alt or false
+			if not myShiftKey then return end
+			
+			if data.outfitCollectibleType then
+				local slotData = outfits.current.slots[data.outfitCollectibleType]
+				if not slotData or slotData == 0 then return end
+				UseCollectible(slotData)
+			elseif data.isTitle and outfits.current.title then 
+				SelectTitle(outfits.current.title)
+			elseif data.isMontur and outfits.current.montur then
+				EquipOutfit(GAMEPLAY_ACTOR_CATEGORY_PLAYER, outfits.current.montur)
+			end
 		end
 	end)
 	if data.isMontur then
@@ -303,7 +317,7 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 					local dyes = {dye1, dye2, dye3}
 					if collectibleId and collectibleId > 0 then
 						local partName = zo_strformat("<<C:1>>", GetCollectibleName(collectibleId))
-						if string.len(partName) > 24 then partName = string.sub(partName, 1, 21).."..." end
+						if string.len(partName) > 25 then partName = string.sub(partName, 1, 22).."..." end
 						local colorNames = {}
 						for j=1,3 do
 							if dyes[j] and dyes[j] ~= 0 then 
@@ -315,7 +329,7 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 						end
 
 						if #colorNames > 0 then
-							partName = string.format("%s (%s)", partName, table.concat(colorNames, "/"))
+							partName = string.format("%s %s", partName, table.concat(colorNames, ""))
 						end
 						
 						InformationTooltip:AddLine(string.format("|t32:32:%s|t %s", GetCollectibleIcon(collectibleId), partName), "ZoFontGame")
@@ -323,7 +337,11 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 					
 					end
 				end	
-			end
+				ZO_Tooltip_AddDivider(InformationTooltip)
+				InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t + %s: %s", GS("SI_KEYCODE", CSPS.savedVariables.settings.jumpShiftKey or 7), GS(SI_APPLY)), "ZoFontGame")
+				InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit), "ZoFontGame")
+			end -- GS(SI_APPLY))
+			
 			ctrMinus:SetHidden(false)
 			ctrMinus:SetHandler("OnClicked", function() outfits.current.montur = 0 CSPS.refreshTree() end)
 		else
@@ -350,9 +368,11 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 					ZO_Tooltip_AddDivider(InformationTooltip)
 					InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", achievementTexture), "ZoFontGame")
 					InformationTooltip:AddLine(zo_strformat("<<C:1>>", achievementName), "ZoFontWinH3")
-					InformationTooltip:AddLine(zo_strformat("<<1>>", achievementDescription), "ZoFontGame")			
-					InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit), "ZoFontGame")		
+					InformationTooltip:AddLine(zo_strformat("<<1>>", achievementDescription), "ZoFontGame")		
 				end
+				ZO_Tooltip_AddDivider(InformationTooltip)	
+				InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t + %s: %s", GS("SI_KEYCODE", CSPS.savedVariables.settings.jumpShiftKey or 7), GS(SI_APPLY)), "ZoFontGame")
+				InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit), "ZoFontGame")
 			end
 		end
 		ctrText:SetText(string.format("%s: %s", GS(SI_STATS_TITLE), title))
@@ -369,9 +389,11 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 			control.tooltipFunction = function()
 				InitializeTooltip(InformationTooltip, ctrText, LEFT, 0, 0, RIGHT)
 				InformationTooltip:AddLine(zo_strformat("<<C:1>>", name), "ZoFontWinH2")
-				InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", textureName), "ZoFontGame")
+				InformationTooltip:AddLine(string.format("\n|t64:64:%s|t\n", textureName), "ZoFontGame")
 				ZO_Tooltip_AddDivider(InformationTooltip)
 				InformationTooltip:AddLine(description, "ZoFontGame")
+				ZO_Tooltip_AddDivider(InformationTooltip)
+				InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t + %s: %s", GS("SI_KEYCODE", CSPS.savedVariables.settings.jumpShiftKey or 7), GS(SI_APPLY)), "ZoFontGame")
 				InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit), "ZoFontGame")
 			end
 		else
@@ -388,6 +410,7 @@ function CSPS.setupOutfitSection(control, node, data)
 	if node:IsOpen() and not data.fillContent then
 		btnApply:SetHidden(false)
 		btnApply:SetWidth(21)
+		btnApply:SetHandler("OnMouseEnter", function() ZO_Tooltips_ShowTextTooltip(btnApply, RIGHT, GS(SI_APPLY)) end)
 		btnApply:SetHandler("OnClicked", function() 	
 			outfits.apply()
 		end)
