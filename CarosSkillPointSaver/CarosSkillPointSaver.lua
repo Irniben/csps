@@ -692,8 +692,12 @@ function CSPS.loadBuild()
 		CSPS.setTheGear(CSPS.extractGearString(gearComp, gearCompUnique))
 	end
 	
-	if CSPS.savedVariables.settings.showOutfits and myProfile.outfitComp then 
-		CSPS.outfits.extract(myProfile.outfitComp)
+	if CSPS.savedVariables.settings.showOutfits then
+		if myProfile.outfitComp then 
+			CSPS.outfits.extract(myProfile.outfitComp)
+		else
+			myProfile.outfitComp = CSPS.outfits.compress()
+		end
 	end
 	
 	CSPS.refreshTree() 

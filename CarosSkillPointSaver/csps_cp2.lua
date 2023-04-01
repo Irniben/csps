@@ -639,6 +639,7 @@ function CSPS.initCPSideBar()
 	local bars = cpBarCtr.slots
 	local hbRearrange = {2, 3, 1}
 	local cpBL = CSPS.savedVariables.settings.cpSideBarLabels
+	cpBarCtr:SetWidth(cpBL == true and 242 or 38)
 	for i=1,3 do
 		local discipline = hbRearrange[i]
 		bars[discipline] = {}

@@ -109,6 +109,7 @@ end
 
 function outfits.setSlot(outfitCollectibleType, actionValue)
 	outfits.current.slots[outfitCollectibleType] = actionValue
+	CSPS.unsavedChanges = true
 	CSPS.refreshTree()
 end
 
@@ -116,7 +117,7 @@ function outfits.showMonturMenu()
 	ClearMenu()
 	
 	for i=0, GetNumUnlockedOutfits() do
-		AddCustomMenuItem(getMonturName(i), function() outfits.current.montur = i CSPS.refreshTree() end)
+		AddCustomMenuItem(getMonturName(i), function() outfits.current.montur = i CSPS.unsavedChanges = true CSPS.refreshTree() end)
 	end
 	
 	ShowMenu()
@@ -260,7 +261,7 @@ function outfits.showTitleMenu()
 					return ""
 				end
 			end
-			table.insert(subMenu, {label = titleName, callback = function() outfits.current.title = titlesByName[titleName] CSPS.refreshTree() end, tooltip = tooltip or nil})
+			table.insert(subMenu, {label = titleName, callback = function() outfits.current.title = titlesByName[titleName] CSPS.unsavedChanges = true CSPS.refreshTree() end, tooltip = tooltip or nil})
 		end
 		AddCustomSubMenuItem(sortedTitleListNames[listIndex], subMenu) 
 	end
@@ -317,7 +318,7 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 					local dyes = {dye1, dye2, dye3}
 					if collectibleId and collectibleId > 0 then
 						local partName = zo_strformat("<<C:1>>", GetCollectibleName(collectibleId))
-						if string.len(partName) > 25 then partName = string.sub(partName, 1, 22).."..." end
+						if string.len(partName) > 25 then partName = string.sub(partName, 1, 23).."..." end
 						local colorNames = {}
 						for j=1,3 do
 							if dyes[j] and dyes[j] ~= 0 then 
@@ -343,7 +344,7 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 			end -- GS(SI_APPLY))
 			
 			ctrMinus:SetHidden(false)
-			ctrMinus:SetHandler("OnClicked", function() outfits.current.montur = 0 CSPS.refreshTree() end)
+			ctrMinus:SetHandler("OnClicked", function() outfits.current.montur = 0 CSPS.unsavedChanges = true CSPS.refreshTree() end)
 		else
 			control.tooltipFunction = function() ZO_Tooltips_ShowTextTooltip(ctrText, RIGHT, GS(CSPS_QS_TT_Edit)) end
 			ctrMinus:SetHidden(true)
@@ -358,7 +359,7 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 			control.tooltipFunction = function() ZO_Tooltips_ShowTextTooltip(ctrText, RIGHT, GS(CSPS_QS_TT_Edit)) end
 		else
 			ctrMinus:SetHidden(false)
-			ctrMinus:SetHandler("OnClicked", function() outfits.current.title = 0 CSPS.refreshTree() end)
+			ctrMinus:SetHandler("OnClicked", function() outfits.current.title = 0 CSPS.unsavedChanges = true  CSPS.refreshTree() end)
 			control.tooltipFunction = function()
 				InitializeTooltip(InformationTooltip, ctrText, LEFT, 0, 0, RIGHT)
 				InformationTooltip:AddLine(zo_strformat("<<C:1>>", title), "ZoFontWinH2")
@@ -385,7 +386,7 @@ local function NodeSetupOutfit(node, control, data, open, userRequested, enabled
 		if slotData and slotData ~= 0 then
 			name, description, textureName = GetCollectibleInfo(slotData)
 			ctrMinus:SetHidden(false)
-			ctrMinus:SetHandler("OnClicked", function() outfits.current.slots[data.outfitCollectibleType] = 0 CSPS.refreshTree() end)
+			ctrMinus:SetHandler("OnClicked", function() outfits.current.slots[data.outfitCollectibleType] = 0 CSPS.unsavedChanges = true  CSPS.refreshTree() end)
 			control.tooltipFunction = function()
 				InitializeTooltip(InformationTooltip, ctrText, LEFT, 0, 0, RIGHT)
 				InformationTooltip:AddLine(zo_strformat("<<C:1>>", name), "ZoFontWinH2")

@@ -555,9 +555,12 @@
 						CSPS.onToggleSektion(self, button)
 					</OnMouseUp>
 				</Button>
-				<Label name="$(parent)Name" font="ZoFontGame" mouseEnabled="false">
+				<Label name="$(parent)Name" font="ZoFontGame" mouseEnabled="true">
 					<Dimensions y="24" />
 					<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)Toggle" />
+					<OnMouseUp>
+						if upInside then CSPS.onToggleSektion(self:GetParent():GetNamedChild("Toggle"), button) end
+					</OnMouseUp>	
 				</Label>
 				<Texture name="$(parent)Connection"  textureFile="EsoUI/Art/guild/gamepad/gp_guild_options_permissions.dds"  mouseEnabled="true">
 					<Dimensions x="24" y="24" />
@@ -578,7 +581,6 @@
 				<Texture name="$(parent)IndicatorSaveNew" textureFile="ESOUI/art/buttons/gamepad/gp_plus.dds" hidden="true" layer="2">
 					<Dimensions x="12" y="12" />
 				    <Anchor point="BOTTOM" relativeTo="$(parent)BtnSave" relativePoint="BOTTOMRIGHT" offsetY="5" />
-					
 				</Texture>	
 			</Controls>
 		</Control>
@@ -671,9 +673,12 @@
 						CSPS.onToggleSektion(self, button)
 					</OnMouseUp>
 				</Button>
-				<Label name="$(parent)Name" font="ZoFontGame">
+				<Label name="$(parent)Name" font="ZoFontGame" mouseEnabled="true">
 					<Dimensions x="300" y="24" />
 				     <Anchor point="LEFT" relativeTo="$(parent)Toggle" relativePoint="RIGHT" />
+					<OnMouseUp>
+						if upInside then CSPS.onToggleSektion(self:GetParent():GetNamedChild("Toggle"), button) end
+					</OnMouseUp>	
 				</Label>
 				<Label name="$(parent)Value" font="ZoFontGame">
 					<Dimensions y="24" />
