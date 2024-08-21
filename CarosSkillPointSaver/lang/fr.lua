@@ -92,8 +92,7 @@ local L = {}
 	L.CSPS_CP_GREEN = "PC Vert"
 	
 	L.CSPS_TxtCp = "PC"	-- forme la plus courte pour les points de champion
-	L.CSPS_TxtCpOld = "PC 1.0"
-	L.CSPS_TxtCpNew = "PC 2.0"
+	
 	--	Errormessages (chat)
 	L.CSPS_NoSavedData = "Aucune donnée enregistrée pour le moment."
 	L.CSPS_TxtLangDiff = "La langue du jeu a été modifiée. Migration des données pour les types de compétences classés par ordre alphabétique ."

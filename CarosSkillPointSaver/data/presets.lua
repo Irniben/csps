@@ -178,7 +178,6 @@ CSPS.CPPresets = {
 		discipline = 3,
 		role = 6,
 		source = "Skinny Cheeks",
-		old = true,
 		preset = {
 			{2, 50}, {35, 50}, {38, 10}, {42, 8}, 
 			{113, 20}, {48, 50}, {34, 50}, {39, 10}, 

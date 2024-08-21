@@ -10,6 +10,7 @@ local initOpen = false
 local sm = SCENE_MANAGER
 local wm = WINDOW_MANAGER
 local cp = CSPS.cp
+local cspsWindowFragment = false
 
 local function initCSPSHelp()
 	local helpOversectionsCtr = CSPSWindowHelpSection:GetNamedChild("Oversections")
@@ -283,36 +284,6 @@ function CSPS.hideOptions()
 	EVENT_MANAGER:UnregisterForEvent(CSPS.name, EVENT_GLOBAL_MOUSE_DOWN)
 end
 
-local function autoShowCSPS(oldState, newState)
-	if newState == SCENE_SHOWING then 
-		if cp.useCustomIcons then cp.showCustomIcons() end
-		if CSPS.cpAutoOpen then CSPSWindow:SetHidden(false) end
-	elseif newState == SCENE_HIDDEN then
-		if CSPS.cpAutoOpen then CSPSWindow:SetHidden(true) end
-	end
-end
-
-function CSPS.toggleCPAutoOpen()
-	CSPS.cpAutoOpen = CSPS.savedVariables.settings.cpAutoOpen
-	CHAMPION_PERKS_SCENE:RegisterCallback("StateChange", autoShowCSPS)
-end 
-
-function CSPS.toggleArmoryAutoOpen()
-	CSPS.armoryAutoOpen = CSPS.savedVariables.settings.armoryAutoOpen
-	if not CSPS.armoryAutoOpen then return end
-	sm:GetScene("armoryKeyboard"):RegisterCallback("StateChange", 
-		function(oldState, newState)
-			if not CSPS.armoryAutoOpen then return end
-			if newState == SCENE_SHOWING then
-				CSPSWindow:SetHidden(false)
-			elseif newState == SCENE_HIDDEN then
-				CSPSWindow:SetHidden(true) 
-			end
-		end
-	)
-end 
-
-
 function CSPS.toggleCPCustomIcons()
 	cp.useCustomIcons = CSPS.savedVariables.settings.useCustomIcons
 	cp.updateSidebarIcons()
@@ -320,17 +291,54 @@ function CSPS.toggleCPCustomIcons()
 	if CSPS.savedVariables.settings.cpCustomBar then cp.refreshCustomBar() end
 end 
 
+
+
+function CSPS.registerFragment()
+	cspsWindowFragment = cspsWindowFragment or ZO_SimpleSceneFragment:New(CSPSWindow)
+	local settings = CSPS.savedVariables.settings
+	for sceneName, doShow in pairs(settings.autoShowScenes) do
+		if doShow then
+			sm:GetScene(sceneName):AddFragment(cspsWindowFragment)
+		else
+			sm:GetScene(sceneName):RemoveFragment(cspsWindowFragment)
+		end
+	end
+	
+	local function openOnCombatEnd()
+		if not IsUnitInCombat("player") then
+			CSPSWindow:SetHidden(false)
+		else
+			EVENT_MANAGER:RegisterForEvent(CSPS.name.."_OnCombatEnd", EVENT_PLAYER_COMBAT_STATE, function(_, inCombat)
+				if not inCombat then
+					CSPSWindow:SetHidden(false)
+					EVENT_MANAGER:UnregisterForEvent(CSPS.name.."_OnCombatEnd", EVENT_PLAYER_COMBAT_STATE)
+				end
+			end)
+		end
+	end
+	
+	if settings.openOnCPGain then
+		EVENT_MANAGER:RegisterForEvent(CSPS.name.."_CP_Gain", EVENT_CHAMPION_POINT_GAINED, openOnCombatEnd)
+	else
+		EVENT_MANAGER:UnregisterForEvent(CSPS.name.."_CP_Gain", EVENT_CHAMPION_POINT_GAINED)
+	end
+	if settings.openOnLevelUp then
+		EVENT_MANAGER:RegisterForEvent(CSPS.name.."_LevelUp", EVENT_LEVEL_UPDATE, openOnCombatEnd)
+		EVENT_MANAGER:AddFilterForEvent(CSPS.name.."_LevelUp", EVENT_LEVEL_UPDATE, REGISTER_FILTER_UNIT_TAG, "player")
+	else
+		EVENT_MANAGER:UnregisterForEvent(CSPS.name.."_LevelUp", EVENT_LEVEL_UPDATE)
+	end
+end
+
 function CSPS.toggleCPCustomBar()
 	if CSPS.savedVariables.settings.cpCustomBar then 
 		cp.rearrangeCustomBar()
 		if CSPS.cpFragment == nil then CSPS.cpFragment = ZO_SimpleSceneFragment:New( CSPSCpHotbar ) end
 		sm:GetScene('hud'):AddFragment( CSPS.cpFragment  )
 		sm:GetScene('hudui'):AddFragment( CSPS.cpFragment  )
-	else
-		if CSPS.cpFragment ~= nil then
-			sm:GetScene('hud'):RemoveFragment( CSPS.cpFragment )
-			sm:GetScene('hudui'):RemoveFragment( CSPS.cpFragment )	
-		end
+	elseif CSPS.cpFragment ~= nil then
+		sm:GetScene('hud'):RemoveFragment( CSPS.cpFragment )
+		sm:GetScene('hudui'):RemoveFragment( CSPS.cpFragment )	
 	end
 end 
 
@@ -790,7 +798,22 @@ function CSPS.OnWindowShow()
 		CSPS.initCPSideBar()
 		CSPS.showBuild(true) -- boolean to prevent from setting unsaved-changes to true
 		initOpen = true
+		if CSPS.savedVariables.settings.keepLastBuild and CSPS.currentCharData.auxProfile then
+			CSPS.loadBuild(true)
+			local profileIndex =  CSPS.currentCharData.auxProfile.profileIndex
+			if profileIndex and (profileIndex == 0 or CSPS.profiles[profileIndex]) then 
+				CSPS.selectProfile(profileIndex) 
+				CSPSWindowBuildProfiles.comboBox = CSPSWindowBuildProfiles.comboBox or ZO_ComboBox_ObjectFromContainer(CSPSWindowBuildProfiles)
+				local myComboBox = CSPSWindowBuildProfiles.comboBox	
+				if profileIndex ~= 0 then 
+					myComboBox:SetSelectedItem(CSPS.profiles[profileIndex].name)
+				else
+					myComboBox:SetSelectedItem(GS(CSPS_Txt_StandardProfile))
+				end
+			end
+		end
 	end
+
 	CSPS.toggleMouse(true)
 	
 	CSPS.refreshTree()
@@ -808,6 +831,6 @@ end
 function CSPS.OnWindowHide()
 	CSPS.checkCpOnClose()
 	CSPS.toggleMouse(true)
-	
+	if CSPS.savedVariables.settings.keepLastBuild then CSPS.saveBuildGo(true) end
 	EVENT_MANAGER:UnregisterForEvent(CSPS.name.."GearChange", EVENT_INVENTORY_SINGLE_SLOT_UPDATE)
 end

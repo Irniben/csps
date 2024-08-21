@@ -306,8 +306,18 @@ function CSPS:Initialize()
 	
 	CSPS.toggleStrictOrder(mySettings.strictOrder or false)
 	--local cpRemindMe = mySettings.cpReminder or false
-	CSPS.toggleCPAutoOpen()
-	CSPS.toggleArmoryAutoOpen()
+	mySettings.autoShowScenes = mySettings.autoShowScenes or {}
+	if mySettings.cpAutoOpen ~= nil then 
+		mySettings.autoShowScenes["championPerks"] = mySettings.cpAutoOpen
+		mySettings.cpAutoOpen = nil
+	end
+	if mySettings.armoryAutoOpen ~= nil then 
+		mySettings.autoShowScenes["armoryKeyboard"] = mySettings.armoryAutoOpen
+		mySettings.armoryAutoOpen = nil
+	end
+	CSPS.registerFragment()
+	--CSPS.toggleCPAutoOpen()
+	--CSPS.toggleArmoryAutoOpen()
 	CSPS.toggleCP(0, mySettings.applyCP and CSPS.unlockedCP)
 	mySettings.showHotbar = nil
 	
@@ -326,7 +336,8 @@ function CSPS:Initialize()
 	
 	CSPS.setupLam()
 		
-	EVENT_MANAGER:RegisterForEvent(CSPS.name.."OnCpPurchase", EVENT_CHAMPION_PURCHASE_RESULT, cp.onCPChange)
+	cp.setupZoHooks()
+		
 	EVENT_MANAGER:RegisterForEvent(CSPS.name.."OnPlayerActivated", EVENT_PLAYER_ACTIVATED, function() CSPS.onPlayerActivated() end)
 	EVENT_MANAGER:UnregisterForEvent(CSPS.name.."OnAddOnLoaded", EVENT_ADD_ON_LOADED)
 end
@@ -375,7 +386,7 @@ function CSPS.saveBuild()
 end
 
 
-function CSPS.saveBuildGo()
+function CSPS.saveBuildGo(useAuxProfile)
 	local skillTableClean = CSPS.compressLists()
 	local hbComp = CSPS.hbCompress(CSPS.hbTables)
 	local attrComp = CSPS.attrCompress(CSPS.attrPoints)
@@ -388,7 +399,11 @@ function CSPS.saveBuildGo()
 	
 	-- local myKeys = generateKeys()
 	local profileToSave = {}
-	if CSPS.currentProfile == 0 then
+	if useAuxProfile then
+		CSPS.currentCharData.auxProfile = CSPS.currentCharData.auxProfile or {}
+		profileToSave = CSPS.currentCharData.auxProfile
+		profileToSave.profileIndex = CSPS.currentProfile
+	elseif	CSPS.currentProfile == 0 then
 		profileToSave = CSPS.currentCharData
 	else 
 		profileToSave = CSPS.profiles[CSPS.currentProfile]
@@ -399,6 +414,7 @@ function CSPS.saveBuildGo()
 	profileToSave.attribute = attrComp
 	
 	if CSPS.savedVariables.settings.showOutfits then 
+		
 		profileToSave.outfitComp = CSPS.outfits.compress()
 	end
 	
@@ -456,7 +472,11 @@ function CSPS.hbCompress(hbTables)
 			for j=1,6 do
 				if hbTables[i][j] ~= nil then 
 					-- auxHb1[j] = table.concat(hbTables[i][j], "-")
-					auxHb1[j] = GetSpecificSkillAbilityInfo(hbTables[i][j][1], hbTables[i][j][2], hbTables[i][j][3], 0, 1)
+					if IsCraftedAbilitySkill(unpack(hbTables[i][j])) then
+						auxHb1[j] = "c"..GetCraftedAbilitySkillCraftedAbilityId(unpack(hbTables[i][j]))
+					else
+						auxHb1[j] = GetSpecificSkillAbilityInfo(hbTables[i][j][1], hbTables[i][j][2], hbTables[i][j][3], 0, 1)
+					end
 					anySkillsInBar = true
 				else
 					auxHb1[j] = "-"
@@ -470,14 +490,15 @@ function CSPS.hbCompress(hbTables)
 	return hbComp
 end
 
-function CSPS.compressLists(skillTableToCompress)
-	skillTableToCompress = skillTableToCompress or skillTable
+function CSPS.compressLists()
 	local activeAbs, passiveAbs = {{}}, {{}}
 	local activeTab, passiveTab = {},{}
+	local stylesTab = {}
+	
 	for skillType, skillTypeData in ipairs(skillTable) do
 		for skillLineIndex, skillLineData in ipairs(skillTypeData) do
 			for skillIndex, skEntry in ipairs(skillLineData) do
-				if skEntry.purchased then
+				if skEntry.purchased and not skEntry.craftedId then
 					local myId = GetSpecificSkillAbilityInfo(skillType, skillLineIndex, skillIndex, not skEntry.passive and skEntry.morph or 0, 1)
 					if skEntry.passive and not (skEntry.autoGrant and skEntry.rank == 1) then
 						table.insert(passiveAbs[#passiveAbs], string.format("%s:%s", myId, skEntry.rank or 1))
@@ -486,6 +507,9 @@ function CSPS.compressLists(skillTableToCompress)
 						table.insert(activeAbs[#activeAbs], string.format("%s:%s", myId, skEntry.morph or 0))
 						if #activeAbs[#activeAbs] == 100 then table.insert(activeAbs, {}) end
 					end
+					if skEntry.styleCollectible and skEntry.styleCollectible ~= 0 then
+						table.insert(stylesTab, string.format("%s:%s", myId, skEntry.styleCollectible))
+					end
 				end
 			end
 		end
@@ -493,18 +517,42 @@ function CSPS.compressLists(skillTableToCompress)
 	
 	for i, v in pairs(passiveAbs) do passiveTab[string.format("part%s", i)] = table.concat(v, ",") end	
 	for i, v in pairs(activeAbs) do activeTab[string.format("part%s", i)] = table.concat(v, ",") end
+	stylesTab = #stylesTab > 0 and table.concat(stylesTab, ",") or nil
+		
+	local crafted = {}
+	local anythingScripted = false
+	for i=1, GetNumCraftedAbilities() do
+		local craftedId = GetCraftedAbilityIdAtIndex(i)
+		local skillType, skillLineIndex, skillIndex = GetSkillAbilityIndicesFromCraftedAbilityId(craftedId)
+		local skEntry = skillTable[skillType][skillLineIndex][skillIndex]
+		if skEntry and skEntry.scripts then
+			local hasScripts = false
+			local scriptsForSkill = {craftedId}
+			for j=1, 3 do
+				table.insert(scriptsForSkill, skEntry.scripts[j] or 0)
+				if skEntry.scripts[j] then hasScripts = true end
+			end
+			if hasScripts then 
+				table.insert(crafted, table.concat(scriptsForSkill, ":")) 
+				anythingScripted = true
+			end
+		end
+	end
+		
+	crafted = anythingScripted and table.concat(crafted, ",") or nil
 	
-	return {prog = activeTab, pass = passiveTab}
+	return {prog = activeTab, pass = passiveTab, crafted = crafted, styles = stylesTab}
 end
 
 
-function CSPS.skTableExtract(progTab, passTab, ignoreClass, changeSilent)
+function CSPS.skTableExtract(progTab, passTab, ignoreClass, changeSilent, craftedTab, stylesTab)
 	local racialChange = false
 	if type(progTab) == "table"  or type(passTab) == "table" then 
 		progTab = progTab or {} 
 		passTab = passTab or {}
+		stylesTab = stylesTab or {}
 		if not progTab["part1"] and not passTab["part1"] then return CSPS.oldSkExtract(progTab, passTab) end
-		local morphs, upgrades = {}, {}
+		local morphs, upgrades, crafted, styles = {}, {}, {}, {}
 		
 		for listIndex, myList in pairs(progTab) do
 			local thisList = {SplitString(",", myList)}
@@ -552,19 +600,44 @@ function CSPS.skTableExtract(progTab, passTab, ignoreClass, changeSilent)
 				end	
 			end
 		end	
+		if craftedTab and craftedTab ~= "-" then
+			local craftedListComp = {SplitString(",", craftedTab)}
+			for _, craftedComp in pairs(craftedListComp) do
+				local craftedParams = {SplitString(":", craftedComp)}
+				for i,v in pairs(craftedParams) do
+					craftedParams[i] = tonumber(v)
+					craftedParams[i] = v ~= 0 and v or false
+				end
+				local craftedId = craftedParams[1]
+				table.remove(craftedParams, 1)
+				crafted[craftedId] = {unpack(craftedParams)}
+			end
+		end
+		if stylesTab and stylesTab ~= "-" then
+			local stylesListComp = {SplitString(",", stylesTab)}
+			for _, styleComp in pairs(stylesListComp) do 
+				local myId, styleCollectible = SplitString(":", styleComp)
+				myId, styleCollectible = tonumber(myId), tonumber(styleCollectible)
+				local i, j, k = GetSpecificSkillAbilityKeysByAbilityId(myId) 
+				if i ~= 1 or j < 4 or ignoreClass then
+					if i == 7 and j > 1 then racialChange = true j = 1 end -- If racial skills just change to the current race
+					table.insert(styles, {i, j, k, styleCollectible})
+				end
+			end
+		end
 		if racialChange and not changeSilent then d(zo_strformat("[CSPS] <<C:1>>!", GS(SI_SERVICETOKENTYPE2))) end
-		return morphs, upgrades, racialChange
+		return morphs, upgrades, racialChange, crafted, styles
 	else
-		return {}, {}, racialChange
+		return {}, {}, racialChange, {}, {}
 	end
 end
 
-function CSPS.tableExtract(progTab, passTab)
-	local morphs, upgrades = CSPS.skTableExtract(progTab, passTab)
-	CSPS.populateSkills(morphs, upgrades)
+function CSPS.tableExtract(progTab, passTab, craftedTab, stylesTab)
+	local morphs, upgrades, _, crafted, styles = CSPS.skTableExtract(progTab, passTab, false, false, craftedTab, stylesTab)
+	CSPS.populateSkills(morphs, upgrades, false, crafted, styles)
 end
 
-function CSPS.populateSkills(morphs, upgrades, keepOld)
+function CSPS.populateSkills(morphs, upgrades, keepOld, crafted, styles)
 	if #skillTable == 0 then CSPS.createSkillTable() elseif not keepOld then CSPS.resetSkills() end
 	
 	local function fillSkill(auxListIndex, skillData, isActive)
@@ -586,6 +659,25 @@ function CSPS.populateSkills(morphs, upgrades, keepOld)
 	for passInd, mV in pairs(upgrades) do
 		fillSkill(passInd, mV, false)
 	end
+	if styles then
+		for _, styleData in pairs(styles) do
+			local skillType, skillLineIndex, skillIndex, styleCollectible = unpack(styleData)
+			local theSkill = skillTable[skillType][skillLineIndex][skillIndex] 
+			if theSkill and theSkill.numSkillStyles and theSkill.numSkillStyles > 0 then
+				theSkill.styleCollectible = styleCollectible
+			end
+		end
+	end
+	
+	if crafted then
+		for craftedId, scripts in pairs(crafted) do
+			if craftedId then
+				local skillType, skillLineIndex, skillIndex = GetSkillAbilityIndicesFromCraftedAbilityId(craftedId)
+				skillTable[skillType][skillLineIndex][skillIndex].scripts = {unpack(scripts)}
+			end
+		end
+	end
+	
 	CSPS.refreshSkillSumsAndErrors()
 end
 
@@ -612,11 +704,15 @@ function CSPS.hbExtract(hbComp, classId)
 						local skTyp, skLin, skId
 						if string.find(aSkill, "-") then
 							skTyp, skLin, skId = CSPS.extractOldHbSkill(aSkill)
+						elseif string.gsub(aSkill, "%d", "") == "c" then
+							local myCraftedAbId = string.gsub(aSkill, "%D", "")
+							myCraftedAbId = tonumber(myCraftedAbId)
+							skTyp, skLin, skId = GetSkillAbilityIndicesFromCraftedAbilityId(myCraftedAbId)
 						else
 							local myAbId = tonumber(aSkill)
-							skTyp, skLin, skId = GetSpecificSkillAbilityKeysByAbilityId(aSkill)
+							skTyp, skLin, skId = GetSpecificSkillAbilityKeysByAbilityId(myAbId)
 						end
-						if skTyp and skLin and skId and (skTyp ~=1 or skLin < 4 or classId) then hbTables[hbIndex][hbPosition] = {skTyp, skLin, skId} end
+						if skTyp and skLin and skId and (skTyp ~=1 or skLin < 4 or classId) and skTyp ~= 0 then hbTables[hbIndex][hbPosition] = {skTyp, skLin, skId} end
 					end
 				end
 			end
@@ -624,16 +720,18 @@ function CSPS.hbExtract(hbComp, classId)
 	end
 	return hbTables
 end
-
-
+--GetSkillAbilityIndicesFromCraftedAbilityId
+--GetCraftedAbilitySkillCraftedAbilityId
 	
-function CSPS.loadBuild()
+function CSPS.loadBuild(useAuxProfile)
 	CSPS.showElement("apply", true)
 	CSPS.showElement("save", true)
-	if CSPS.currentCharData.werte == nil and CSPS.profiles == {} then cspsPost(GS(CSPS_NoSavedData)) return end
+	if CSPS.currentCharData.werte == nil and CSPS.profiles == {} and (not CSPS.currentCharData.auxProfile or not useAuxProfile) then cspsPost(GS(CSPS_NoSavedData)) return end
 		
 	local myProfile = CSPS.currentProfile == 0 and CSPS.currentCharData or CSPS.profiles[CSPS.currentProfile]
-
+	if useAuxProfile then
+		myProfile = CSPS.currentCharData.auxProfile
+	end
 	local skillTableClean = myProfile.werte
 	local cpComp = myProfile.cp2werte or ""
 	local cpHbComp = myProfile.cp2hbwerte or ""
@@ -643,7 +741,7 @@ function CSPS.loadBuild()
 	local gearCompUnique = myProfile.gearCompUnique
 	
 	CSPS.setMundus(myProfile.mundus)
-	CSPS.tableExtract(skillTableClean.prog, skillTableClean.pass)
+	CSPS.tableExtract(skillTableClean.prog, skillTableClean.pass, skillTableClean.crafted, skillTableClean.styles)
 	
 	myProfile.connections = myProfile.connections or {}
 	
@@ -701,7 +799,7 @@ function CSPS.loadBuild()
 	end
 	
 	CSPS.refreshTree() 
-	CSPS.unsavedChanges = false
+	CSPS.unsavedChanges = useAuxProfile == true
 end
 
 
@@ -711,26 +809,39 @@ end
 
 function CSPS.applyAttr(skipDiag)
 	if not CSPS.tabEx then return end
-	local attr1 = CSPS.attrPoints[1] -  GetAttributeSpentPoints(1)
-	local attr2 = CSPS.attrPoints[2] -  GetAttributeSpentPoints(2)
-	local attr3 = CSPS.attrPoints[3] -  GetAttributeSpentPoints(3)
-	if attr1 == 0 and attr2 == 0 and attr3 == 0 then return end
-	if attr1 + attr2 + attr3 > GetAttributeUnspentPoints() then	--- Are there enough points to spend?
-		ZO_Dialogs_ShowDialog(CSPS.name.."_OkDiag", {},  {mainTextParams = {GS(CSPS_MSG_ConfirmAttr1)}, titleParams = {GS(CSPS_MSG_ConfirmAttrTitle)}})
-		return 
+	local attrToSpend = {}
+	for i=1, 3 do
+		attrToSpend[i] = CSPS.attrPoints[i] -  GetAttributeSpentPoints(i)
+	end
+	if attrToSpend[1] == 0 and attrToSpend[2] == 0 and attrToSpend[3] == 0 then return end
+	local unspent = GetAttributeUnspentPoints()
+	local sumToSpend = attrToSpend[1] + attrToSpend[2] + attrToSpend[3]
+	local origSumToSpend = sumToSpend
+	local attrIndex = 1
+	while sumToSpend > unspent do
+		attrToSpend[attrIndex] = math.max(attrToSpend[attrIndex] - 1, 0)
+		attrIndex = attrIndex%3 + 1
+		sumToSpend = attrToSpend[1] + attrToSpend[2] + attrToSpend[3]
 	end 
-	if attr1 < 0 or attr2 < 0 or attr3 < 0 then -- any attr points already higher than intended?
+	if attrToSpend[1] < 0 or attrToSpend[2] < 0 or attrToSpend[3] < 0 then -- any attr points already higher than intended?
 		ZO_Dialogs_ShowDialog(CSPS.name.."_OkDiag", {},  {mainTextParams = {GS(CSPS_MSG_ConfirmAttr2)}, titleParams = {GS(CSPS_MSG_ConfirmAttrTitle)}})
 		return 
 	end
 	if not skipDiag then
+		local diagText = {zo_strformat(GS(CSPS_MSG_ConfirmAttr), origSumToSpend, unspent),
+			"",
+			CSPS.cpColors[3]:Colorize(string.format("%s: %s", GS(SI_ATTRIBUTES1), attrToSpend[1])),
+			CSPS.cpColors[2]:Colorize(string.format("%s: %s", GS(SI_ATTRIBUTES2), attrToSpend[2])),
+			CSPS.cpColors[1]:Colorize(string.format("%s: %s", GS(SI_ATTRIBUTES3), attrToSpend[3])),
+			}
+		diagText = table.concat(diagText, "\n")
 		ZO_Dialogs_ShowDialog(CSPS.name.."_OkCancelDiag", 
 			{returnFunc = function() 
-				PurchaseAttributes(attr1, attr2, attr3)
-			end},  
-			{mainTextParams = {zo_strformat(GS(CSPS_MSG_ConfirmAttr), attr1+attr2+attr3, GetAttributeUnspentPoints())}, titleParams = {GS(CSPS_MSG_ConfirmAttrTitle)}})
+				PurchaseAttributes(unpack(attrToSpend))
+			end},  			
+			{mainTextParams = {diagText}, titleParams = {GS(CSPS_MSG_ConfirmAttrTitle)}})
 	else
-		PurchaseAttributes(attr1, attr2, attr3)
+		PurchaseAttributes(unpack(attrToSpend))
 	end
 end
 

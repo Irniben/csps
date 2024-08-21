@@ -22,28 +22,7 @@ function CSPS.setupLam()
 			name = GS(SI_VIDEO_OPTIONS_INTERFACE),
 			width = "full",
 		},	
-		{
-			type = "checkbox",
-			name = GS(CSPS_CPAutoOpen),
-			width = "full",
-			tooltip = GS(CSPS_Tooltip_CPAutoOpen),
-			getFunc = function() return options.cpAutoOpen end,
-			setFunc = function(value) 
-					options.cpAutoOpen = value
-					CSPS.toggleCPAutoOpen()
-				end,
-		},
-		{
-			type = "checkbox",
-			name = GS(CSPS_ArmoryAutoOpen),
-			width = "full",
-			tooltip = GS(CSPS_Tooltip_ArmoryAutoOpen),
-			getFunc = function() return options.armoryAutoOpen end,
-			setFunc = function(value) 
-					options.armoryAutoOpen = value
-					CSPS.toggleArmoryAutoOpen()
-				end,
-		},
+		
 		{
 			type = "checkbox",
 			name = GS(CSPS_ShowHb),
@@ -85,70 +64,169 @@ function CSPS.setupLam()
 		},
 		
 		{
-			type = "header",
-			name = GS(SI_STAT_GAMEPAD_CHAMPION_POINTS_LABEL),
-			width = "full",
-		},	
-		{
-			type = "dropdown",
-			name = GS(CSPS_LAM_SortCP),
-			width = "full",
-			choices = {GS(CSPS_LAM_SortCP_1), GS(CSPS_LAM_SortCP_2), GS(CSPS_LAM_SortCP_3)},
-			choicesValues = {1,2,3},
-			sort = "value-up",
-			default = 1,
-			getFunc = function() return options.sortCPs or 1 end,
-			setFunc = function(value) 
-				options.sortCPs = value 
-				CSPS.cp.reSortList()
-			end,
-		},
-		{
 			type = "checkbox",
-			name = GS(CSPS_CPCustomIcons),
+			name = GS(CSPS_KeepLastBuild),
+			tooltip = GS(CSPS_KeepLastBuildTT),
 			width = "full",
-			tooltip = GS(CSPS_Tooltip_CPCustomIcons),
-			getFunc = function() return options.useCustomIcons end,
+			getFunc = function() return options.keepLastBuild end,
 			setFunc = function(value) 
-					options.useCustomIcons = value
-					CSPS.toggleCPCustomIcons()
-				end,
-		},
-		{
-			type = "checkbox",
-			name = GS(CSPS_CPCustomBar),
-			width = "full",
-			tooltip = GS(CSPS_Tooltip_CPCustomBar),
-			getFunc = function() return options.cpCustomBar end,
-			setFunc = function(value) 
-					if not options.cpCustomBar or not value then
-						options.cpCustomBar = value and 1 or false
-						CSPS.toggleCPCustomBar()
+					options.keepLastBuild = value
+					if not value then
+						ZO_Dialogs_ShowDialog(CSPS.name.."_YesNoDiag", 
+							{yesFunc = function() 
+								for _, charData in pairs(CSPS.savedVariables.charData) do
+									charData.auxProfile = nil
+								end
+							end,
+							noFunc = function() end,
+							}, 
+							{mainTextParams = {GS(CSPS_DeleteLastBuilds)}}
+							) 
+					
 					end
 				end,
 		},
+		
 		{
-			type = "dropdown",
-			name = GS(CSPS_CPCustomBarLayout),
-			width = "full",
-			choices = {"1x4", "3x4", "1x12"},
-			choicesValues = {3,2,1},
-			sort = "value-up",
-			default = 3,
-			disabled = function() return(not options.cpCustomBar) end,
-			getFunc = function() return options.cpCustomBar or 1 end,
-			setFunc = function(value) 
-				options.cpCustomBar = value 
-				CSPS.toggleCPCustomBar() 
-			end,
+			type = "submenu",
+			name = GS(CSPS_AutoOpen),
+			icon = "esoui/art/guild/tabicon_history_up.dds",
+			controls = {
+				{
+					type = "checkbox",
+					name = GS(CSPS_CPAutoOpen),
+					width = "full",
+					tooltip = GS(CSPS_Tooltip_CPAutoOpen),
+					getFunc = function() return options.autoShowScenes["championPerks"]  end,
+					setFunc = function(value) 
+							options.autoShowScenes["championPerks"]  = value
+							CSPS.registerFragment()
+						end,
+				},
+				{
+					type = "checkbox",
+					name = GS(CSPS_ArmoryAutoOpen),
+					width = "full",
+					tooltip = GS(CSPS_Tooltip_ArmoryAutoOpen),
+					getFunc = function() return options.autoShowScenes["armoryKeyboard"]  end,
+					setFunc = function(value) 
+							options.autoShowScenes["armoryKeyboard"] = value
+							CSPS.registerFragment()
+						end,
+				},
+				{
+					type = "checkbox",
+					name = GS(CSPS_SkillWindowAutoOpen),
+					width = "full",
+					tooltip = GS(CSPS_SkillWindowAutoOpen),
+					getFunc = function() return options.autoShowScenes["skills"]  end,
+					setFunc = function(value) 
+							options.autoShowScenes["skills"]  = value
+							CSPS.registerFragment()
+						end,
+				},
+				{
+					type = "checkbox",
+					name = GS(CSPS_StatsWindowAutoOpen),
+					width = "full",
+					tooltip = GS(CSPS_StatsWindowAutoOpen),
+					getFunc = function() return options.autoShowScenes["stats"]  end,
+					setFunc = function(value) 
+							options.autoShowScenes["stats"]  = value
+							CSPS.registerFragment()
+						end,
+				},    
+				{
+					type = "checkbox",
+					name = GS(SI_LEVEL_UP_NOTIFICATION),
+					width = "full",
+					tooltip = GS(SI_LEVEL_UP_NOTIFICATION),
+					getFunc = function() return options.openOnLevelUp  end,
+					setFunc = function(value) 
+							options.openOnLevelUp = value
+							CSPS.registerFragment()
+						end,
+				},
+				{
+					type = "checkbox",
+					name = zo_strformat("<<C:1>>", GS(SI_CHAMPION_POINT_EARNED)),
+					width = "full",
+					tooltip = GS(SI_CHAMPION_POINT_EARNED),
+					getFunc = function() return options.openOnCPGain  end,
+					setFunc = function(value) 
+							options.openOnCPGain  = value
+							CSPS.registerFragment()
+						end,
+				},
+			}
 		},
 		{
-			type = "checkbox",
-			name = GS(CSPS_LAM_ShowOutdatedPresets),
-			width = "full",
-			tooltip = GS(CSPS_LAM_ShowOutdatedPresets),
-			getFunc = function() return options.showOutdatedPresets end,
-			setFunc = function(value) options.showOutdatedPresets = value end,
+			type = "submenu",
+			name = GS(SI_STAT_GAMEPAD_CHAMPION_POINTS_LABEL),
+			icon = "esoui/art/champion/champion_icon.dds",
+			controls = {
+				{
+					type = "dropdown",
+					name = GS(CSPS_LAM_SortCP),
+					width = "full",
+					choices = {GS(CSPS_LAM_SortCP_1), GS(CSPS_LAM_SortCP_2), GS(CSPS_LAM_SortCP_3)},
+					choicesValues = {1,2,3},
+					sort = "value-up",
+					default = 1,
+					getFunc = function() return options.sortCPs or 1 end,
+					setFunc = function(value) 
+						options.sortCPs = value 
+						CSPS.cp.reSortList()
+					end,
+				},
+				{
+					type = "checkbox",
+					name = GS(CSPS_CPCustomIcons),
+					width = "full",
+					tooltip = GS(CSPS_Tooltip_CPCustomIcons),
+					getFunc = function() return options.useCustomIcons end,
+					setFunc = function(value) 
+							options.useCustomIcons = value
+							CSPS.toggleCPCustomIcons()
+						end,
+				},
+				{
+					type = "checkbox",
+					name = GS(CSPS_CPCustomBar),
+					width = "full",
+					tooltip = GS(CSPS_Tooltip_CPCustomBar),
+					getFunc = function() return options.cpCustomBar end,
+					setFunc = function(value) 
+							if not options.cpCustomBar or not value then
+								options.cpCustomBar = value and 1 or false
+								CSPS.toggleCPCustomBar()
+							end
+						end,
+				},
+				{
+					type = "dropdown",
+					name = GS(CSPS_CPCustomBarLayout),
+					width = "full",
+					choices = {"1x4", "3x4", "1x12"},
+					choicesValues = {3,2,1},
+					sort = "value-up",
+					default = 3,
+					disabled = function() return(not options.cpCustomBar) end,
+					getFunc = function() return options.cpCustomBar or 1 end,
+					setFunc = function(value) 
+						options.cpCustomBar = value 
+						CSPS.toggleCPCustomBar() 
+					end,
+				},
+				{
+					type = "checkbox",
+					name = GS(CSPS_LAM_ShowOutdatedPresets),
+					width = "full",
+					tooltip = GS(CSPS_LAM_ShowOutdatedPresets),
+					getFunc = function() return options.showOutdatedPresets end,
+					setFunc = function(value) options.showOutdatedPresets = value end,
+				},
+			}
 		},
 		{
 			type = "submenu",
@@ -193,6 +271,19 @@ function CSPS.setupLam()
 						end,
 					disabled = function() return not (CSPS.doGear and options.showGearMarkers) end,
 				},	
+				{
+					type = "checkbox",
+					name = GS(CSPS_LAM_ShowNumSetItems),
+					width = "full",
+					tooltip = GS(CSPS_LAM_ShowNumSetItems),
+					getFunc = function() return not options.hideNumSetItems end,
+					setFunc = function(value) 
+							options.hideNumSetItems = not value 
+							CSPS.getTreeControl():RefreshVisible()
+						end,
+					disabled = function() return not (CSPS.doGear and options.showGearMarkers) end,
+				},	
+				
 			}				
 		},
 		{
@@ -228,7 +319,7 @@ function CSPS.setupLam()
 		{
 			type = "submenu",
 			name = GS(SI_SOCIAL_OPTIONS_NOTIFICATIONS),
-			icon = "esoui/art/campaign/campaign_tabicon_summary_up.dds",
+			icon = "esoui/art/mainmenu/menubar_notifications_up.dds",
 			controls = {
 				{
 					type = "checkbox",
@@ -344,7 +435,7 @@ function CSPS.setupLam()
 					setFunc = function(value) 
 							options.applyAllExclude.outfit = not value
 						end,
-					disabled = function() return not options.showOutfits end,
+					disabled = function() return not options.showOutfits or not options.showApplyAll end,
 				},
 				
 			}

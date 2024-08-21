@@ -8,6 +8,8 @@ local gearCategories = {
 	
 }
 
+local cspsD = CSPS.cspsD
+
 local theGear = {}
 
 local gearSlots = {
@@ -49,6 +51,11 @@ local gearSlotsBody = {
 local gearSlotsHands = {
 	[EQUIP_SLOT_MAIN_HAND] = true,
 	[EQUIP_SLOT_OFF_HAND] = true,
+	[EQUIP_SLOT_BACKUP_MAIN] = true,
+	[EQUIP_SLOT_BACKUP_OFF] = true,
+}
+
+local gearSlotsBackbar = {
 	[EQUIP_SLOT_BACKUP_MAIN] = true,
 	[EQUIP_SLOT_BACKUP_OFF] = true,
 }
@@ -487,23 +494,98 @@ local function setSetId(setId)
 	end
 end
 
+local function formatSetName(setId)
+	if GetItemSetType(setId) == ITEM_SET_TYPE_WEAPON then
+		return zo_strformat("<<C:1>> (<<C:2>>)", GetItemSetName(setId), GetItemSetCollectionCategoryName(GetItemSetCollectionCategoryId(setId)))
+	end
+	return zo_strformat("<<C:1>>", GetItemSetName(setId))
+end
+
 local function getSetAutoCompleteOptions(gearSlot)
 	if gearSlotsPoison[gearSlot] then return false, false end
 	local allSets = {}
 	local allSetsT = {}
 	for i, v in pairs(CSPS.GetSetList()) do
 		if not gearSlot or doesSetFitGearSlot(gearSlot, v) then
-			local myName = ""
-			if GetItemSetType(v) == ITEM_SET_TYPE_WEAPON then
-				myName = zo_strformat("<<C:1>> (<<C:2>>)", GetItemSetName(v), GetItemSetCollectionCategoryName(GetItemSetCollectionCategoryId(v)))
-			else
-				myName = zo_strformat("<<C:1>>", GetItemSetName(v))
-			end
-			allSetsT[v]= myName
-			allSets[myName] = v
+			local mySetName = formatSetName(v)
+			allSetsT[v]= mySetName
+			allSets[mySetName] = v
 		end
 	end
 	return allSets, allSetsT
+end
+
+local function getActiveSets()
+	local setCounts = {}
+	for gearSlot, gearTable in pairs(theGear) do
+		if gearTable and gearTable.setId and gearTable.setId ~= 0 then
+			setCounts[gearTable.setId] = setCounts[gearTable.setId] or {0, 0, 0}
+			if gearSlotsHands[gearSlot] then
+				local addNum = isTwoHanded[gearTable.type] and 2 or 1
+				if gearSlotsBackbar[gearSlot] then 
+					setCounts[gearTable.setId][3] = setCounts[gearTable.setId][3] + addNum
+				else
+					setCounts[gearTable.setId][2] = setCounts[gearTable.setId][2] + addNum
+				end
+			else
+				setCounts[gearTable.setId][1] = setCounts[gearTable.setId][1] + 1
+			end
+		end
+	end
+	return setCounts
+end
+
+local function showSetContextMenu(gearSlot)
+	gearSlot = gearSlot or gearSelector.gearSlot
+	if gearSlotsPoison[gearSlot] then return false, false end
+	local setCounts = getActiveSets()
+
+	local function iterateBag(bagId, tableToFill)
+		for slotIndex=0, GetBagSize(bagId) do
+			local hasSet, _, _, _, _, setId = GetItemLinkSetInfo(GetItemLink(bagId, slotIndex))
+			if hasSet then tableToFill[setId] = true end
+		end
+	end
+	
+	local setsInInventory = {}
+	iterateBag(BAG_BACKPACK, setsInInventory)
+	iterateBag(BAG_WORN, setsInInventory)
+	
+	local setsInBank = {}
+	iterateBag(BAG_BANK, setsInBank)
+	iterateBag(BAG_SUBSCRIBER_BANK, setsInBank)
+	
+	local function createSubMenu(setIdList)
+		local idByName = {}
+		local sortedNames = {}
+		for setId in pairs(setIdList) do
+			if doesSetFitGearSlot(gearSlot, setId) then
+				local formattedSetName = formatSetName(setId)
+				table.insert(sortedNames, formattedSetName)
+				idByName[formattedSetName] = setId
+			end
+		end
+		table.sort(sortedNames)
+		local mySubMenu = {}
+		for _, formattedSetName in pairs(sortedNames) do
+			local setId = idByName[formattedSetName]			
+			table.insert(mySubMenu, {label = formattedSetName, 
+				callback = function() 
+					CSPSWindowGearWindowSetsEdit:SetText(formattedSetName) 
+					setSetId(setId)
+				end})
+		end
+		return mySubMenu
+	end
+	
+	ClearMenu()	
+	
+	AddCustomSubMenuItem(GS(SI_CHARACTER_EQUIP_TITLE), createSubMenu(setCounts)) 
+	AddCustomSubMenuItem(GS(SI_GAMEPAD_INVENTORY_CATEGORY_HEADER), createSubMenu(setsInInventory)) 	
+	AddCustomSubMenuItem(GS(SI_GUILDHISTORYCATEGORY2), createSubMenu(setsInBank)) 	
+	
+	ShowMenu()
+			
 end
 
 local function setSelectorPoison(firstId, secondId)
@@ -698,16 +780,26 @@ function CSPS.InitGearWindow(control)
 
 	setText:SetHandler("OnTextChanged", 
 		function() 
-			local setId = setOptions[setText:GetText()] 
-			setSetId(setId and setId or false)
+				local setId = setOptions[setText:GetText()] 
+				setSetId(setId and setId or false)
 			end, "getSetNameResult")
-
+	setText:SetHandler("OnMouseUp",
+		function(_, mouseButton, upInside)
+			if upInside and mouseButton == 2 then showSetContextMenu(gearSelector.gearSlot) end
+		end)
+		
+	control:GetNamedChild("BtnListSelect"):SetHandler("OnClicked",
+		function()
+			showSetContextMenu(gearSelector.gearSlot)
+		end)
 end
 
 local function hideGearWindow(anchorControl)
 	local control = WINDOW_MANAGER:GetMouseOverControl()
 	for i = 1, 15 do
 		if control == CSPS.gearWindow or control == ZO_Menu then return end
+		local controlName = control:GetName()
+		if string.sub(controlName, 1, 10) == "ZO_SubMenu" or string.sub(controlName, 1, 16) == "ZO_CustomSubMenu" then return end
 		if anchorControl and control == anchorControl then return end
 		if control == control:GetParent() then break end
 		control = control:GetParent()
@@ -773,6 +865,7 @@ function CSPS.showGearWin(control, gearSlot)
 				theGear[gearSelector.gearSlot] = myTable
 				CSPS.gearWindow:SetHidden(true)
 				EVENT_MANAGER:UnregisterForEvent(CSPS.name.."GearWinHider", EVENT_GLOBAL_MOUSE_DOWN)
+				CSPS.refreshSetCount()
 				CSPS.getTreeControl():RefreshVisible()
 			end
 		end
@@ -857,27 +950,33 @@ local function findSetItem(mySlot, findNew)
 	local bagIds = {BAG_BACKPACK, BAG_BANK,  BAG_SUBSCRIBER_BANK }
 	local fitsExactly, couldFit = {}, {}
 	local uniqueIdToFind = theGear[mySlot].itemUniqueID or false
-		
+	local foundNotUnique = false	
 	theGear[mySlot].fitsExactly = theGear[mySlot].fitsExactly or {}
+	if findNew then theGear[mySlot].fitsExactly = {} end
 	local lastFits = theGear[mySlot].fitsExactly
 	
 	for _, bagId in pairs(bagIds) do
 		fitsExactly[bagId] = {}
 		couldFit[bagId] = {}
 	end
-	
+	cspsD("Looking for item for slot "..mySlot)
 	for _, bagId in pairs(bagIds) do
+		cspsD("Looking for item in bag "..bagId)
 		local isBackpack = bagId == BAG_BACKPACK 
 		
 		local lastFitBag = lastFits and lastFits[isBackpack]
-		if not findNew then
-			if lastFitBag and lastFitBag.itemLink == GetItemLink(lastFitBag.bagId, lastFitBag.slotIndex, 1) then
+		
+		if lastFitBag and lastFitBag.itemLink == GetItemLink(lastFitBag.bagId, lastFitBag.slotIndex, 1) then
+			if not uniqueIdToFind or not foundNotUnique or isBackpack then
 				fitsExactly[lastFitBag.bagId] = {lastFitBag}
+				cspsD("Found exact item in list of items found in previous search.")
 				return fitsExactly, couldFit
-			else
-				lastFits[isBackpack] = false
 			end
+		else
+
+			lastFits[isBackpack] = false
 		end
+
 		
 		for slotIndex = 0, GetBagSize(bagId) do
 			local itemLink = GetItemLink(bagId, slotIndex, 1)
@@ -885,9 +984,11 @@ local function findSetItem(mySlot, findNew)
 				local itemUniqueID = Id64ToString(GetItemUniqueId(bagId, slotIndex))
 				if itemUniqueID == uniqueIdToFind then
 					fitsExactly[bagId] = {{slotIndex = slotIndex, itemLink = itemLink}}
+					lastFits[isBackpack] = {slotIndex = slotIndex, itemLink = itemLink, bagId = bagId}
 					for _, otherBag in pairs(bagIds) do
 						if otherBag ~= bagId then fitsExactly[otherBag] = {} end
 					end
+					cspsD("Found exact item with unique id.")
 					return fitsExactly, couldFit, true -- third parameter to indicated we found the unique item
 				end
 			end
@@ -898,10 +999,9 @@ local function findSetItem(mySlot, findNew)
 					if fit1 and not checkItemLevel(itemLink, true) then
 						if fit2 then
 							table.insert(fitsExactly[bagId], {slotIndex = slotIndex, itemLink = itemLink})
-							if not findNew then 
-								lastFits[isBackpack] = {slotIndex = slotIndex, itemLink = itemLink, bagId = bagId}
-								return fitsExactly, couldFit
-							end
+							lastFits[isBackpack] = {slotIndex = slotIndex, itemLink = itemLink, bagId = bagId}
+							cspsD("Found exact potion, stop search and return lists.")
+							return fitsExactly, couldFit
 						else
 						
 							--- TODO    TODO    TODO ---
@@ -916,9 +1016,12 @@ local function findSetItem(mySlot, findNew)
 					if setIdFits and typeFits and not checkItemLevel(itemLink, true) then
 						if enchantFits and qualityFits and traitFits then
 							table.insert(fitsExactly[bagId], {slotIndex = slotIndex, itemLink = itemLink})
-							if not findNew then
-								lastFits[isBackpack] = {slotIndex = slotIndex, itemLink = itemLink, bagId = bagId}
-								if not uniqueIdToFind then return fitsExactly, couldFit end
+							lastFits[isBackpack] = {slotIndex = slotIndex, itemLink = itemLink, bagId = bagId}
+							if not uniqueIdToFind then 
+								cspsD("Found exact item, stop search and return lists.")
+								return fitsExactly, couldFit 
+							elseif not isBackpack then
+								foundNotUnique = true 
 							end
 							
 						else
@@ -941,6 +1044,7 @@ local function findSetItem(mySlot, findNew)
 			end
 		end
 	end
+	cspsD("Search complete. Return lists.")
 	return fitsExactly, couldFit
 end
 
@@ -981,17 +1085,14 @@ local function showPoisonTooltip(control, gearSlot, firstId, secondId)
 			ZO_Tooltip_AddDivider(InformationTooltip)
 			r, g, b = ZO_NORMAL_TEXT:UnpackRGB()
 			InformationTooltip:AddLine(string.format("|t26:26:esoui/art/tooltips/icon_bag.dds|t %s\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s", fitsExactly[BAG_BACKPACK][1].itemLink, GS(SI_ITEM_ACTION_EQUIP)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
-			control:GetParent():SetHandler("OnMouseUp", function(_, mouseButton, upInside)
-				if upInside and mouseButton == 1 then
-					EquipItem(BAG_BACKPACK, fitsExactly[BAG_BACKPACK][1].slotIndex, gearSlot)
-					showPoisonTooltip(control, gearSlot, firstId, secondId)
-				end
-			end)
+			control.equipItem = {BAG_BACKPACK, fitsExactly[BAG_BACKPACK][1].slotIndex, gearSlot}
 		elseif #fitsExactly[BAG_BANK] > 0 or #fitsExactly[BAG_SUBSCRIBER_BANK] > 0 then
 			ZO_Tooltip_AddDivider(InformationTooltip)
 			r, g, b = ZO_NORMAL_TEXT:UnpackRGB()
 			local fittingItem = fitsExactly[BAG_BANK][1] or fitsExactly[BAG_SUBSCRIBER_BANK][1]
-			InformationTooltip:AddLine(string.format("|t26:26:esoui/art/tooltips/icon_bank.dds|t %s", fittingItem.itemLink), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+			local bagId = #fitsExactly[BAG_BANK] > 0 and BAG_BANK or BAG_SUBSCRIBER_BANK
+			control.retrieveItem = {bagId, fittingItem.slotIndex}
+			InformationTooltip:AddLine(string.format("|t26:26:esoui/art/tooltips/icon_bank.dds|t %s\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s", fittingItem.itemLink, GS(SI_BANK_WITHDRAW)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
 		end
 	end
 end
@@ -1001,7 +1102,8 @@ CSPS.showPoisonTooltip = showPoisonTooltip
 local function showSetItemTooltip(control, setId, gearSlot, itemType,  traitType, itemQuality, enchantId)
 
 	if not theGear[gearSlot] then return false end
-	if WINDOW_MANAGER:GetMouseOverControl():GetParent() ~= control:GetParent() then return false end
+	local parentControl = control:GetParent()
+	if WINDOW_MANAGER:GetMouseOverControl():GetParent() ~= parentControl then return false end
 	
 	InitializeTooltip(InformationTooltip, control, LEFT)
 	
@@ -1057,18 +1159,9 @@ local function showSetItemTooltip(control, setId, gearSlot, itemType,  traitType
 	local hasSet, _, numBonuses, _, _, linkSetId = GetItemLinkSetInfo(itemLink)
 	
 	if hasSet then
-		local numActive = 0
-		local countedFrontBar = false
-		for _, v in pairs(gearSlots) do
-			local someGear = theGear[v]
-			if type(someGear) == "table" and someGear.setId == setId then
-				if v ~= EQUIP_SLOT_BACKUP_MAIN and v ~= EQUIP_SLOT_BACKUP_OFF or not countedFrontBar then
-					numActive = numActive + 1
-					if v == EQUIP_SLOT_MAIN_HAND or v == EQUIP_SLOT_OFF_HAND then countedFrontBar = true end
-					if gearSlotsHands[v] and isTwoHanded[someGear.type or 0] then numActive = numActive + 1 end
-				end
-			end
-		end
+		local setCount = theGear[gearSlot].setCount
+		local numActive = setCount and math.max(setCount[1] + setCount[2], setCount[1] + setCount[3]) or 42
+		
 		local activeBoni, inactiveBoni = {}, {}
 		for i=1, numBonuses do
 			local numRequired, bonusDescription = GetItemLinkSetBonusInfo(itemLink, false, i)
@@ -1095,12 +1188,7 @@ local function showSetItemTooltip(control, setId, gearSlot, itemType,  traitType
 			r, g, b = ZO_NORMAL_TEXT:UnpackRGB()
 			local iconUnique = foundUnique and " |t26:26:esoui/art/tooltips/icon_lock.dds|t" or ""
 			InformationTooltip:AddLine(string.format("|t26:26:esoui/art/tooltips/icon_bag.dds|t%s %s\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t %s", iconUnique, fitsExactly[BAG_BACKPACK][1].itemLink, GS(SI_ITEM_ACTION_EQUIP)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
-			control:GetParent():SetHandler("OnMouseUp", function(_, mouseButton, upInside)
-				if upInside and mouseButton == 1 then
-					EquipItem(BAG_BACKPACK, fitsExactly[BAG_BACKPACK][1].slotIndex, gearSlot)
-					zo_callLater(function() showSetItemTooltip(control, setId, gearSlot, itemType,  traitType, itemQuality, enchantId) end, 420)
-				end
-			end)
+			parentControl.equipItem = {BAG_BACKPACK, fitsExactly[BAG_BACKPACK][1].slotIndex, gearSlot}
 		elseif #fitsExactly[BAG_BANK] > 0 or #fitsExactly[BAG_SUBSCRIBER_BANK] > 0 then
 			ZO_Tooltip_AddDivider(InformationTooltip)
 			r, g, b = ZO_NORMAL_TEXT:UnpackRGB()
@@ -1109,20 +1197,8 @@ local function showSetItemTooltip(control, setId, gearSlot, itemType,  traitType
 			
 			if GetInteractionType() == INTERACTION_BANK then
 				myItemText = string.format("%s\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t %s", myItemText, GS(SI_ITEM_ACTION_BANK_WITHDRAW))
-				control:GetParent():SetHandler("OnMouseUp", function(_, mouseButton, upInside)
-					if upInside and mouseButton == 1 then
-						if GetInteractionType() == INTERACTION_BANK then
-							local bagId = fitsExactly[BAG_BANK][1] and BAG_BANK or BAG_SUBSCRIBER_BANK
-							if IsProtectedFunction("RequestMoveItem") then
-								CallSecureProtected("RequestMoveItem", bagId, fittingItem.slotIndex, BAG_BACKPACK, FindFirstEmptySlotInBag(BAG_BACKPACK), 1)
-							else
-								RequestMoveItem(bagId, fittingItem.slotIndex, BAG_BACKPACK, FindFirstEmptySlotInBag(BAG_BACKPACK), 1)
-							end
-						end
-						zo_callLater(function() showSetItemTooltip(control, setId, gearSlot, itemType,  traitType, itemQuality, enchantId) end, 420)
-					end
-				end)
-				
+				local bagId = fitsExactly[BAG_BANK][1] and BAG_BANK or BAG_SUBSCRIBER_BANK
+				parentControl.retrieveItem = {bagId, fittingItem.slotIndex}				
 			end
 			
 			InformationTooltip:AddLine(myItemText, "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
@@ -1346,6 +1422,7 @@ local function receiveDrag(gearSlot)
 		end
 		if itemUniqueID then removeDuplicateUniqueId(itemUniqueID) end
 		setArmorOrWeaponFromLink(gearSlot, itemLink, itemUniqueID)
+		CSPS.refreshSetCount()
 		CSPS:getTreeControl():RefreshVisible()
 		return true
 	end
@@ -1360,6 +1437,7 @@ local function receiveDrag(gearSlot)
 		if itemUniqueID then removeDuplicateUniqueId(itemUniqueID) end
 		setArmorOrWeaponFromLink(gearSlot, itemLink, itemUniqueID)
 	end
+	CSPS.refreshSetCount()
 	CSPS:getTreeControl():RefreshVisible()
 	return true
 		
@@ -1411,14 +1489,40 @@ local function NodeSetupGear(node, control, data, open, userRequested, enabled)
 			end
 			
 			control.tooltipExitFunction = function()
-				control:SetHandler("OnMouseUp", function() end)
+				control.retrieveItem = nil
+				control.equipItem = nil
 				ZO_Tooltips_HideTextTooltip()
 			end
+			control:SetHandler("OnMouseUp", function(_, mouseButton, upInside)
+				if not upInside then return end
+				if mouseButton == 1 then
+					if control.equipItem then 
+						EquipItem(unpack(control.equipItem))
+						zo_callLater(function() showPoisonTooltip(control.ctrEnchantment, mySlot, myTable.firstId, myTable.secondId) end, 420)
+						InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit))
+					elseif control.retrieveItem then
+						if GetInteractionType() == INTERACTION_BANK then
+							if IsProtectedFunction("RequestMoveItem") then
+								CallSecureProtected("RequestMoveItem", control.retrieveItem[1], control.retrieveItem[2], BAG_BACKPACK, FindFirstEmptySlotInBag(BAG_BACKPACK), 1)
+							else
+								RequestMoveItem(control.retrieveItem[1], control.retrieveItem[2], BAG_BACKPACK, FindFirstEmptySlotInBag(BAG_BACKPACK), 1)
+							end
+						end
+						zo_callLater(function() showPoisonTooltip(control.ctrEnchantment, mySlot, myTable.firstId, myTable.secondId) end, 420)
+					end
+				elseif mouseButton == 2 and control.editFunc then
+					control.editFunc()
+				end
+			end)
 		else
 			control.ctrTrait:SetHidden(false)
 			control.ctrEnchantment:SetHidden(false)			
 			--control.ctrSetName:SetText(zo_strformat("<<C:1>>", GetItemSetName(myTable.setId)))
-			control.ctrSetName:SetText(myTable.link)
+			if myTable.setCountF and not CSPS.savedVariables.settings.hideNumSetItems then
+				control.ctrSetName:SetText(string.format("%s (%s)", myTable.link, myTable.setCountF))
+			else
+				control.ctrSetName:SetText(myTable.link)
+			end
 			local itemIcon = getSetItemInfo(myTable.setId, mySlot, myTable.type)
 			if myTable.mara or myTable.setId == 0 then
 				itemIcon = GetItemLinkIcon(myTable.link)
@@ -1440,9 +1544,31 @@ local function NodeSetupGear(node, control, data, open, userRequested, enabled)
 				if ttdc1 then
 					InformationTooltip:SetDimensionConstraints(ttdc1, ttdc2, ttdc3, ttdc4)
 				end
-				control:SetHandler("OnMouseUp", function() end)
+				control.retrieveItem = nil
+				control.equipItem = nil
 				ZO_Tooltips_HideTextTooltip()
 			end
+			
+			control:SetHandler("OnMouseUp", function(_, mouseButton, upInside)
+				if not upInside then return end
+				if mouseButton == 1 then
+					if control.equipItem then
+						EquipItem(unpack(control.equipItem))
+						zo_callLater(function() showSetItemTooltip(control.ctrEnchantment, myTable.setId, mySlot, myTable.type, myTable.trait, myTable.quality, myTable.enchant) end, 420)
+					elseif control.retrieveItem then
+						if GetInteractionType() == INTERACTION_BANK then
+							if IsProtectedFunction("RequestMoveItem") then
+								CallSecureProtected("RequestMoveItem", control.retrieveItem[1], control.retrieveItem[2], BAG_BACKPACK, FindFirstEmptySlotInBag(BAG_BACKPACK), 1)
+							else
+								RequestMoveItem(control.retrieveItem[1], control.retrieveItem[2], BAG_BACKPACK, FindFirstEmptySlotInBag(BAG_BACKPACK), 1)
+							end
+						end
+						zo_callLater(function() showSetItemTooltip(control.ctrEnchantment, myTable.setId, mySlot, myTable.type, myTable.trait, myTable.quality, myTable.enchant) end, 420)
+					end
+				elseif mouseButton == 2 and control.editFunc then
+					control.editFunc()	
+				end
+			end)
 			
 			local setIdFits, enchantFits, qualityFits, typeFits, traitFits = checkItemForSlot(GetItemLink(BAG_WORN, mySlot), mySlot)
 	 		
@@ -1477,8 +1603,13 @@ local function NodeSetupGear(node, control, data, open, userRequested, enabled)
 	else
 		--control:SetHidden(true)
 		--control:SetHeight(0)
-		control.tooltipFunction = function(self) ZO_Tooltips_ShowTextTooltip(self, TOP, GS(CSPS_QS_TT_Edit)) end
+		control.tooltipFunction = function(self) if control.editFunc then ZO_Tooltips_ShowTextTooltip(self, TOP, GS(CSPS_QS_TT_Edit)) end end
 		control.tooltipExitFunction = function() ZO_Tooltips_HideTextTooltip() end
+		control:SetHandler("OnMouseUp", 
+			function(_, mouseButton, upInside)
+				if not upInside then return end
+				if mouseButton == 2 and control.editFunc then control.editFunc() end 
+			end)
 		control.ctrSetName:SetText("-")
 		control.ctrIcon:SetTexture(string.format("esoui/art/characterwindow/%s.dds", gearSlotIcons[mySlot]))
 		control.ctrTrait:SetHidden(true)
@@ -1489,18 +1620,21 @@ local function NodeSetupGear(node, control, data, open, userRequested, enabled)
 
 	if mySlot == EQUIP_SLOT_BACKUP_OFF and theGear[EQUIP_SLOT_BACKUP_MAIN] and theGear[EQUIP_SLOT_BACKUP_MAIN].type and isTwoHanded[theGear[EQUIP_SLOT_BACKUP_MAIN].type] or
 		mySlot == EQUIP_SLOT_OFF_HAND and theGear[EQUIP_SLOT_MAIN_HAND] and theGear[EQUIP_SLOT_MAIN_HAND].type and isTwoHanded[theGear[EQUIP_SLOT_MAIN_HAND].type] then
+		control.editFunc = false
 		control.ctrBtnEdit:SetHidden(true)
 		control.ctrIcon:SetMouseEnabled(false)
 		control.ctrSetName:SetMouseEnabled(false)
 	else
-		control.ctrBtnEdit:SetHandler("OnClicked", function()
-			if CSPS.gearWindow and not CSPS.gearWindow:IsHidden() and gearSelector.gearSlot == mySlot then 
-				EVENT_MANAGER:UnregisterForEvent(CSPS.name.."GearWinHider", EVENT_GLOBAL_MOUSE_DOWN)
-				CSPS.gearWindow:SetHidden(true)
-				return
+		control.editFunc = 
+			function()
+				if CSPS.gearWindow and not CSPS.gearWindow:IsHidden() and gearSelector.gearSlot == mySlot then 
+					EVENT_MANAGER:UnregisterForEvent(CSPS.name.."GearWinHider", EVENT_GLOBAL_MOUSE_DOWN)
+					CSPS.gearWindow:SetHidden(true)
+					return
+				end
+				CSPS.showGearWin(control.ctrBtnEdit, mySlot)
 			end
-			CSPS.showGearWin(control.ctrBtnEdit, mySlot)
-		end)
+		control.ctrBtnEdit:SetHandler("OnClicked", control.editFunc)
 		control.ctrBtnEdit:SetHidden(false)
 		control.ctrIcon:SetMouseEnabled(true)
 		control.ctrSetName:SetMouseEnabled(true)		
@@ -1517,13 +1651,22 @@ local function doesWornItemFitSlot(gearSlot)
 	end
 end
 
+CSPS.doesWornItemFitSlot = doesWornItemFitSlot
+
 local function equipAllFittingGear()
 	local alreadyEquipped = {}
 	for gearSlot, gearTable in pairs(theGear) do
 		if gearTable then
+			
 			if not doesWornItemFitSlot(gearSlot) then
+				cspsD("Slot to change: "..gearSlot)
 				local fitsExactly, couldFit = findSetItem(gearSlot, true)
+				cspsD("Fits exactly:")
+				cspsD(fitsExactly)
+				cspsD("Could fit:")
+				cspsD(couldFit)
 				if #fitsExactly[BAG_BACKPACK] > 0 then
+					cspsD(fitsExactly[BAG_BACKPACK])
 					for _, fittingItem in pairs(fitsExactly[BAG_BACKPACK]) do
 						-- since we`re equipping all items at once if there is one item fitting two slots (possible for rings or weapons) we have to check
 						-- we have to iterate over the fitting items because they might still be there but already queed to equip
@@ -1692,7 +1835,30 @@ function CSPS.getCurrentGear()
 
 		]]--
 	
+	CSPS.refreshSetCount()
 	return theGear
+end
+
+function CSPS.refreshSetCount()
+	local setCounts = getActiveSets()
+	local setCountFormatted = {}
+	for setId, setCountNumbers in pairs(setCounts) do
+		if setCountNumbers[2] > 0 or setCountNumbers[3] > 0 then
+			setCountFormatted[setId] = string.format("%s/%sx", setCountNumbers[1] + setCountNumbers[2], setCountNumbers[1] + setCountNumbers[3])
+		else	
+			setCountFormatted[setId] = setCountNumbers[1].."x"
+		end
+	end
+	for gearSlot, gearTable in pairs(theGear) do
+		if gearTable and gearTable.setId and gearTable.setId ~= 0 then
+			gearTable.setCountF = setCountFormatted[gearTable.setId]
+			gearTable.setCount = setCounts[gearTable.setId]
+		elseif gearTable then
+			gearTable.setCountF = nil
+			gearTable.setCount = nil
+		end
+	end
+	return setCountFormatted
 end
 
 function CSPS.getTheGear()
@@ -1716,5 +1882,6 @@ function CSPS.setTheGear(newGear)
 			end
 		end
 	end
+	CSPS.refreshSetCount()
 	CSPS.getTreeControl():RefreshVisible()
 end

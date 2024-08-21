@@ -365,19 +365,18 @@ local function applyChampionSkillToHotbarProfile(discipline, hbIndex, skillData,
 	CSPS.showElement("save", true)
 end
 
-local function showHotbarSkillMenu(discipline, hbIndex, showInactive)
+local function showHotbarSkillMenu(discipline, hbIndex, currentSkillId, showInactive, funcIsSlotted, funcIsActive, funcValue, funcApply)
 	
-	local currentSkill = cpBar[discipline][hbIndex]
 	local skillsInProfile, skillsNotInProfile, skillsAlreadyInHb = {}, {}, {}
 	local skillByName = {}
 	
 	for skillId, skillData in pairs(cpTable) do
-		if (not currentSkill or skillId ~= currentSkill.id) and skillData.discipline == discipline and CanChampionSkillTypeBeSlotted(GetChampionSkillType(skillId)) then
+		if (not currentSkillId or skillId ~= currentSkillId) and skillData.discipline == discipline and CanChampionSkillTypeBeSlotted(GetChampionSkillType(skillId)) then
 			local skillName = zo_strformat("<<C:1>>", GetChampionSkillName(skillId))
 			skillByName[skillName] = skillData
-			if cpInHb[skillId] then
+			if funcIsSlotted(skillId) then
 				table.insert(skillsAlreadyInHb, skillName)
-			elseif skillData.active then
+			elseif funcIsActive(skillData) then
 				table.insert(skillsInProfile, skillName)
 			else
 				table.insert(skillsNotInProfile, skillName)
@@ -397,10 +396,10 @@ local function showHotbarSkillMenu(discipline, hbIndex, showInactive)
 		local skillData = skillByName[skName]
 		skName = nameColor and nameColor:Colorize(skName) or skName
 		skName = cp.useCustomIcons and skillData.icon and string.format("|t20:20:%s|t %s", skillData.icon, skName) or skName
-		AddCustomMenuItem(skName, function() applyChampionSkillToHotbarProfile(discipline, hbIndex, skillData, nil) end)
+		AddCustomMenuItem(skName, function() funcApply(discipline, hbIndex, skillData, nil) end)
 		
 		local menuItemControl = ZO_Menu.items[#ZO_Menu.items].item 
-		menuItemControl.onEnter = function() CSPS.showCpTT(menuItemControl, skillData, nil, false, false, 15) end
+		menuItemControl.onEnter = function() CSPS.showCpTT(menuItemControl, skillData, funcValue and funcValue(skillData) or nil, false, false, 15) end
 		menuItemControl.onExit = function() ZO_Tooltips_HideTextTooltip() end
 	end
 	--ZO_NORMAL_TEXT
@@ -558,21 +557,64 @@ function CSPS.OnHotbarMoveStop()
 	CSPS.savedVariables.settings.hbtop = CSPSCpHotbar:GetTop()
 end
 
-local function showCustomIcons()
-	if not cp.useCustomIcons then return end
-	for i=1,3 do
-		for j=1,4 do
-			local mySlot = (i-1) * 4 + j
-			local mySk = GetSlotBoundId(mySlot, HOTBAR_CATEGORY_CHAMPION)
-			if mySk and mySk > 0 then
-				local myZoIcon = WINDOW_MANAGER:GetControlByName(string.format("ZO_ChampionPerksActionBarSlot%sIcon", mySlot))
-				if myZoIcon ~= nil then myZoIcon:SetTexture(cpTable[mySk].icon) end
-			end
-		end
-	end
+local function onCPChange(_, result)
+	if result > 0 then return end
+	if waitingForCpPurchase then cspsPost(GS(CSPS_CPApplied)) waitingForCpPurchase = false end
+	if CSPS.savedVariables.settings.cpCustomBar then cp.refreshCustomBar() end
 end
 
-cp.showCustomIcons = showCustomIcons
+function cp.setupZoHooks()	
+	EVENT_MANAGER:RegisterForEvent(CSPS.name.."OnCpPurchase", EVENT_CHAMPION_PURCHASE_RESULT, onCPChange)
+
+	ZO_PreHook("ZO_ChampionAssignableActionSlot_OnMouseClicked", function(control, mouseButton) 
+		if GetCursorContentType() ~= MOUSE_CONTENT_EMPTY then return end
+		if mouseButton == 1 then 
+			-- discipline, hbIndex, showInactive, funcIsSlotted, funcIsActive, funcValue, funcApply)
+			local slotIndex = control.owner:GetSlotIndices()
+			barIndex = math.floor((slotIndex - 1)/4) + 1
+			slotIndex = (slotIndex-1)%4 + 1
+			showHotbarSkillMenu(barIndex, slotIndex, control.owner.championSkillData and control.owner.championSkillData:GetId(), false, 
+				function(skillId) -- slotted
+					for _, slotData in pairs(control.owner.bar.slots) do
+						if slotData and slotData.championSkillData and slotData.championSkillData:GetId() == skillId then return true end
+						-- if skillId == GetSlotBoundId(slotIndex, HOTBAR_CATEGORY_CHAMPION) then return true end
+					end
+				end,
+				function(theSkillData) -- active
+					return WouldChampionSkillNodeBeUnlocked(theSkillData.id, GetNumPointsSpentOnChampionSkill(theSkillData.id))
+				end,
+				function(theSkillData) -- value
+					return GetNumPointsSpentOnChampionSkill(theSkillData.id)
+				end,
+				function(discipline, hbIndex, theSkillData) --apply
+					control.owner:AssignChampionSkillToSlot(CHAMPION_DATA_MANAGER:GetChampionSkillData(theSkillData.id))
+				end)
+			return true
+		end 
+	end)
+
+	SecurePostHook(CHAMPION_DATA_MANAGER, "OnDeferredInitialize", function()
+		for i=1,3 do
+			for j=1,4 do
+				local mySlot = (i-1) * 4 + j			
+				local myZoSlotCtr = WINDOW_MANAGER:GetControlByName(string.format("ZO_ChampionPerksActionBarSlot%s", mySlot))
+				local myBtnCtr = myZoSlotCtr:GetNamedChild("Button")
+				local myZoIcon = myZoSlotCtr:GetNamedChild("Icon")
+				local myZoSlot = myBtnCtr.owner
+				if myZoSlot ~= nil then 
+					
+					SecurePostHook(myZoSlot, "Refresh", function()
+						if myZoSlot.championSkillData and cp.useCustomIcons then
+							
+							local skillData = cpTable[myZoSlot.championSkillData:GetId()]
+							if skillData then myZoIcon:SetTexture(skillData.icon) end
+						end
+					end)
+				end
+			end
+		end
+	end)
+end
 
 function cp.refreshCustomBar()
 	local cpCustomBar = CSPS.savedVariables.settings.cpCustomBar
@@ -610,23 +652,24 @@ function CSPS.showCpTT(control, skillData, overwriteValue, withTitle, hotbarExpl
 	
 	local myTooltip = myId and GetChampionSkillDescription(myId)
 	local myCurrentBonus = myValue and GetChampionSkillCurrentBonusText(myId, myValue) or ""
+	local r,g,b =  ZO_NORMAL_TEXT:UnpackRGB()
 	if withTitle then
-		InformationTooltip:AddLine(zo_strformat("<<C:1>>", GetChampionSkillName(myId)), "ZoFontWinH2")
-		if  cp.useCustomIcons and skillData.icon then InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", skillData.icon), "ZoFontGame") end
+		InformationTooltip:AddLine(zo_strformat("<<C:1>>", GetChampionSkillName(myId)), "ZoFontWinH2", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+		if  cp.useCustomIcons and skillData.icon then InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", skillData.icon), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true) end
 		ZO_Tooltip_AddDivider(InformationTooltip)
 	end
-	if myId then InformationTooltip:AddLine(myTooltip, "ZoFontGame") end
-	if myCurrentBonus ~= "" then InformationTooltip:AddLine(myCurrentBonus, "ZoFontGameBold", ZO_SUCCEEDED_TEXT:UnpackRGBA() ) end
+	if myId then InformationTooltip:AddLine(myTooltip, "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true) end
+	if myCurrentBonus ~= "" then InformationTooltip:AddLine(myCurrentBonus, "ZoFontGameBold", ZO_SUCCEEDED_TEXT.r, ZO_SUCCEEDED_TEXT.g, ZO_SUCCEEDED_TEXT.b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true) end
 	if hotbarExplain then 
-		InformationTooltip:AddLine(GS(CSPS_Tooltip_CPBar), "ZoFontGame")
+		InformationTooltip:AddLine(string.format("%s\n\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s\n|t26:26:esoui/art/miscellaneous/icon_rmb.dds|t: %s", GS(CSPS_Tooltip_CPBar), GS(SI_GAMEPAD_CHAMPION_QUICK_MENU), GS(SI_ABILITY_ACTION_CLEAR_SLOT)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
 	else
 		local myActualValue = GetNumPointsSpentOnChampionSkill(myId)
 		if myValue and myValue ~= myActualValue then
 			ZO_Tooltip_AddDivider(InformationTooltip)
-			InformationTooltip:AddLine(zo_strformat(GS(CSPS_CPPCurrentlyApplied), myActualValue), "ZoFontGame")
+			InformationTooltip:AddLine(zo_strformat(GS(CSPS_CPPCurrentlyApplied), myActualValue), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
 			if myActualValue ~= 0 then 
 				local myActualBonus = GetChampionSkillCurrentBonusText(myId, myActualValue) or ""
-				if myActualBonus ~= "" then InformationTooltip:AddLine(myActualBonus, "ZoFontGame", CSPS.colors.orange:UnpackRGB()) end
+				if myActualBonus ~= "" then InformationTooltip:AddLine(myActualBonus, "ZoFontGame", CSPS.colors.orange.r, CSPS.colors.orange.g, CSPS.colors.orange.b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true) end
 			end
 		end
 	end
@@ -670,7 +713,7 @@ function CSPS.initCPSideBar()
 					if button==2 then 
 						CSPS.CpHbSkillRemove(discipline, j) 
 					elseif button==1 then
-						showHotbarSkillMenu(discipline, j)
+						showHotbarSkillMenu(discipline, j, cpBar[discipline][j] and cpBar[discipline][j].id, false, cp.isInHb, function(skillData) return skillData.active end, nil, applyChampionSkillToHotbarProfile)
 					end 
 				end)
 			oneSlot.circle:SetHandler("OnDragStart", function(_, button) if button == 1 then WINDOW_MANAGER:SetMouseCursor(15)  CSPS.onCpHbIconDrag(discipline, j) end end)
@@ -700,7 +743,6 @@ function cp.updateSidebarIcons(discipline)
 			myCtrl.circle:SetHandler("OnMouseEnter", 
 				function()  
 					CSPS.showCpTT(myCtrl.circle, skillData, nil, true, true) 
-						InformationTooltip:AddLine(string.format("%s\n\n|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s", GS(CSPS_Tooltip_CPBar), GS(SI_GAMEPAD_CHAMPION_QUICK_MENU)), "ZoFontGame")
 				end) 
 			myCtrl.circle:SetHandler("OnMouseExit", function () ZO_Tooltips_HideTextTooltip() end)
 		else
@@ -968,15 +1010,6 @@ function cp.applyGo(skipDiag)
 	else
 		cp.applyConfirm(respecNeeded) 
 	end
-end
-
-
-
-function cp.onCPChange(_, result)
-	if result > 0 then return end
-	if waitingForCpPurchase then cspsPost(GS(CSPS_CPApplied)) waitingForCpPurchase = false end
-	if CSPS.savedVariables.settings.cpCustomBar then cp.refreshCustomBar() end
-	zo_callLater(showCustomIcons, 500)
 end
 
 function cp.applyConfirm(respecNeeded, hotbarsOnly)

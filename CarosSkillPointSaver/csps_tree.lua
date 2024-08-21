@@ -36,6 +36,7 @@ local errorColors = { -- ec = {correct = 1, wrongMorph = 2, rankHigher = 3, skil
 	colTbl.red,   
 }
 
+
 local cp2ColorsA = {{70/255,107/255,7/255}, {23/255,101/255,135/255}, {166/255,58/255,11/255}}
 
 -- local cpColTex = {"esoui/art/champion/champion_points_stamina_icon-hud-32.dds","esoui/art/champion/champion_points_magicka_icon-hud-32.dds","esoui/art/champion/champion_points_health_icon-hud-32.dds",}
@@ -132,8 +133,18 @@ local function showSimpleTT(control, ttInd, includeShiftKey)
 end
 	
 
-local function showSkTT(control, i,j,k, morph, rank, errorCode, skillData)
+local function showSkTT(control, i,j,k, morph, rank, errorCode, skillData, position, showTitle, showStats)
 	local myTooltip = GetAbilityDescription(GetSpecificSkillAbilityInfo(i,j,k, morph, rank))
+	if skillData.craftedId then
+		myTooltip = GetCraftedAbilityDescription(skillData.craftedId)
+		if skillData.scripts then
+			for _, scriptId in pairs(skillData.scripts) do
+				if scriptId and tonumber(scriptId) ~= 0 then
+					myTooltip = string.format("%s\n\n%s", myTooltip, GetCraftedAbilityScriptDescription(skillData.craftedId, scriptId))
+				end
+			end
+		end
+	end
 	errorCode = errorCode or 0
 	local errorAlerts = {
 		[ec.correct] = function() return colTbl.green:Colorize(GS("CSPS_ErrorNumber", errorCode)) end,
@@ -143,25 +154,117 @@ local function showSkTT(control, i,j,k, morph, rank, errorCode, skillData)
 		[ec.rankLocked] = function() local rankNeeded = skillData.zo_data:GetProgressionData(rank):GetLineRankNeededToUnlock() return colTbl.red:Colorize(zo_strformat(GS(SI_ABILITY_UNLOCKED_AT), skillData.lineData.name, rankNeeded)) end,
 		[ec.morphLocked] = function() return colTbl.red:Colorize(GS(SI_ABILITYPROGRESSIONRESULT7)) end,
 	}
-	
 	myTooltip = errorAlerts[errorCode] and string.format("%s\n\n%s", myTooltip, errorAlerts[errorCode]()) or myTooltip
 	
-	ZO_Tooltips_ShowTextTooltip(control, RIGHT, myTooltip)
+	if skillData.craftedId then
+		if not IsCraftedAbilityUnlocked(skillData.craftedId) then
+			myTooltip =  string.format("%s\n\n%s", myTooltip, colTbl.red:Colorize(GetCraftedAbilityAcquireHint(skillData.craftedId)))
+		end
+	end
+	
+	InitializeTooltip(InformationTooltip, control, position)
+	local r,g,b =  ZO_NORMAL_TEXT:UnpackRGB()
+	if showTitle then	
+		InformationTooltip:AddLine(zo_strformat("|t28:28:<<2>>|t\n<<C:1>>", skillData.morph and skillData.morph > 0 and skillData.morphNames[skillData.morph] or skillData.name, skillData.morph and skillData.morph > 0 and skillData.morphTextures[skillData.morph] or skillData.texture), "ZoFontWinH2", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true) 
+		ZO_Tooltip_AddDivider(InformationTooltip)
+	end
+	local statList = CSPS.getAbilityStats(skillData)
+	if statList and showStats then 
+		InformationTooltip:AddLine(table.concat(statList, "\n"), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+	end
+	InformationTooltip:AddLine(myTooltip, "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true) 
+	--ZO_Tooltips_ShowTextTooltip(control, position, myTooltip)
+end
+
+CSPS.showSkTT = showSkTT
+
+local function showCustomSkillStyleTT(control, activeCollectible)
+	InitializeTooltip(InformationTooltip, control, LEFT)
+	local useWide = false
+	local r,g,b =  ZO_NORMAL_TEXT:UnpackRGB()
+	if activeCollectible and activeCollectible > 0 then
+		useWide = true
+		InformationTooltip:AddLine(zo_strformat("<<C:1>>", zo_strformat("<<C:1>>", GetCollectibleName(activeCollectible))), "ZoFontWinH2", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+		InformationTooltip:AddLine(string.format("\n|t48:48:%s|t\n", GetCollectibleIcon(activeCollectible)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+		InformationTooltip:AddLine(GetCollectibleDescription(activeCollectible), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+		InformationTooltip:AddLine("", "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, true)
+		if not IsCollectibleUnlocked(activeCollectible) then 
+			table.insert(myTooltip, GetCollectibleHint(activeCollectible))
+		end
+	end
+	InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s", GS(SI_GAMEPAD_SELECT_OPTION)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, useWide)
+	if activeCollectible and activeCollectible ~= 0 then
+		InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_rmb.dds|t: %s", GS(SI_ABILITY_ACTION_CLEAR_SLOT)), "ZoFontGame", r, g, b, CENTER, MODIFY_TEXT_TYPE_NONE, TEXT_ALIGN_CENTER, useWide)
+	end
 end
 
 local function NodeSetup(node, control, data, open, userRequested, enabled)
 
 	local i, j, k, mySkill = unpack(data)
 
-	--Entries: [1]Name [2]Texture [3] Rank [4]Progression [5]Purchased [6]Morph [7] Points [8] Auxlistindex [9] MaxRank/Morph [10] Errorcode
-		
 	local myCtrIcon = control:GetNamedChild("Icon")
 	local myCtrText = control:GetNamedChild("Text")
 	local myCtrPoints = control:GetNamedChild("Points")
 	local myCtrMorph = control:GetNamedChild("Morph")
 	local myCtrBtnPlus = control:GetNamedChild("BtnPlus")
 	local myCtrBtnMinus = control:GetNamedChild("BtnMinus")
+	local myCtrCustomize = control:GetNamedChild("Customize")
 	local morphOrRank = ""
+	
+	if mySkill.craftedId and mySkill.scripts then
+		local emptyScripts = {"esoui/art/skills/scribing_primary_dragging.dds", "esoui/art/skills/scribing_secondary_dragging.dds", "esoui/art/skills/scribing_tertiary_dragging.dds"}
+		for scribingSlot=1, 3 do
+			local scriptTexture = mySkill.scripts[scribingSlot] and tonumber(mySkill.scripts[scribingSlot]) ~= 0 and GetCraftedAbilityScriptIcon(mySkill.scripts[scribingSlot]) or emptyScripts[scribingSlot]
+			local ctrScript = control:GetNamedChild("Script"..scribingSlot)
+			ctrScript:SetTexture(scriptTexture)
+			ctrScript:SetHandler("OnMouseEnter", function() 
+				local myTooltip = "-"
+				if mySkill.scripts[scribingSlot] and mySkill.scripts[scribingSlot] ~= 0 then
+					myTooltip = zo_strformat("<<C:1>>: <<2>>", GetCraftedAbilityScriptDisplayName(mySkill.scripts[scribingSlot]), GetCraftedAbilityScriptDescription(mySkill.craftedId, mySkill.scripts[scribingSlot]))
+				end
+				ZO_Tooltips_ShowTextTooltip(ctrScript, RIGHT, myTooltip)
+			end)
+			ctrScript:SetHandler("OnMouseUp", function(self, mouseButton, upInside)
+				if upInside then
+					if mouseButton == MOUSE_BUTTON_INDEX_RIGHT then 
+						mySkill.scripts[scribingSlot] = nil
+						CSPS.refreshTree(true)
+					elseif mouseButton == MOUSE_BUTTON_INDEX_LEFT then
+						
+						ClearMenu()
+						for scriptIndex=1, GetNumScriptsInSlotForCraftedAbility(mySkill.craftedId, scribingSlot) do
+						
+							local scriptId = GetScriptIdAtSlotIndexForCraftedAbility(mySkill.craftedId, scribingSlot, scriptIndex)						
+							local abName = zo_strformat("<<C:1>>", GetCraftedAbilityScriptDisplayName(scriptId))
+							
+							if not IsCraftedAbilityScriptUnlocked(scriptId) then
+								abName = colTbl.red:Colorize(abName)
+							elseif not IsCraftedAbilityScriptCompatibleWithSelections(scriptId, mySkill.craftedId, mySkill.scripts[1],mySkill.scripts[2],mySkill.scripts[3]) then
+								abName = colTbl.orange:Colorize(abName)
+							end
+							
+							AddCustomMenuItem(zo_strformat("|t20:20:<<2>>|t <<1>>", abName, GetCraftedAbilityScriptIcon(scriptId)), 
+								function() 
+									mySkill.scripts[scribingSlot] = scriptId 
+									CSPS.refreshTree(true) 
+								end)
+		
+							local menuItemControl = ZO_Menu.items[#ZO_Menu.items].item 
+							menuItemControl.onEnter = function() 
+								local myTooltip = GetCraftedAbilityScriptDescription(mySkill.craftedId, scriptId)
+								if not IsCraftedAbilityScriptUnlocked(scriptId) then myTooltip = string.format("%s \n\n %s", myTooltip, GetCraftedAbilityScriptAcquireHint(scriptId)) end
+								ZO_Tooltips_ShowTextTooltip(menuItemControl, RIGHT, myTooltip)
+							end
+							menuItemControl.onExit = function() ZO_Tooltips_HideTextTooltip() end
+							
+	
+						end
+						ShowMenu()
+					end
+				end
+			end)
+		end
+	end
 	
 	if not mySkill.passive then
 		morphOrRank = zo_strformat(GS(CSPS_MORPH), mySkill.morph)
@@ -173,6 +276,63 @@ local function NodeSetup(node, control, data, open, userRequested, enabled)
 				WINDOW_MANAGER:SetMouseCursor(15)
 				 CSPS.onSkillDrag(i, j, k)
 			end)
+		if mySkill.numSkillStyles and mySkill.numSkillStyles > 0 then
+			myCtrCustomize:SetHidden(false)
+			--local activeCollectible = GetActiveProgressionSkillAbilityFxOverrideCollectibleId(mySkill.progId)
+			local activeCollectible = mySkill.styleCollectible
+			myCtrCustomize:SetTexture(activeCollectible and activeCollectible ~= 0 and GetCollectibleIcon(activeCollectible) or "esoui/art/progression/skillstyling_default_up.dds")
+			myCtrCustomize:SetHandler("OnMouseUp", function(self, mouseButton, upInside)
+				if upInside then
+					if mouseButton == MOUSE_BUTTON_INDEX_RIGHT then 
+						mySkill.styleCollectible = nil
+						showCustomSkillStyleTT(myCtrCustomize, false)
+						CSPS.refreshTree(true) 			
+					elseif mouseButton == MOUSE_BUTTON_INDEX_LEFT then
+						
+						ClearMenu()
+						for styleIndex=1, mySkill.numSkillStyles do
+						
+							local collectibleId = GetProgressionSkillAbilityFxOverrideCollectibleIdByIndex(mySkill.progId, styleIndex)
+							local activeCollectible = GetActiveProgressionSkillAbilityFxOverrideCollectibleId(mySkill.progId)
+							
+							local styleName = zo_strformat("<<C:1>>", GetCollectibleName(collectibleId))
+							
+							if not IsCollectibleUnlocked(collectibleId) then
+								styleName = colTbl.red:Colorize(styleName)
+							elseif activeCollectible == collectibleId then
+								styleName = colTbl.green:Colorize(styleName)
+							end
+							
+							AddCustomMenuItem(zo_strformat("|t20:20:<<2>>|t <<1>>", styleName, GetCollectibleIcon(collectibleId)), 
+								function() 
+									mySkill.styleCollectible = collectibleId
+									CSPS.refreshTree(true)
+								end)
+		
+							local menuItemControl = ZO_Menu.items[#ZO_Menu.items].item 
+							menuItemControl.onEnter = function() 
+								local myTooltip = GetCollectibleDescription(collectibleId)
+								local myHint = GetCollectibleHint(collectibleId)
+								if not IsCollectibleUnlocked(collectibleId) and myHint and myHint ~= "" then
+									myTooltip = string.format("%s\n\n%s", myTooltip, myHint)
+								end
+								ZO_Tooltips_ShowTextTooltip(menuItemControl, RIGHT, myTooltip)
+							end
+							menuItemControl.onExit = function() ZO_Tooltips_HideTextTooltip() end
+							
+	
+						end
+						ShowMenu()
+					end
+				end
+			end)
+			myCtrCustomize:SetHandler("OnMouseEnter", function()
+				showCustomSkillStyleTT(myCtrCustomize, activeCollectible)
+			end)
+			
+		else
+			myCtrCustomize:SetHidden(true)
+		end
 	else
 		morphOrRank = string.format(GS(CSPS_MyRank), mySkill.rank)
 		myCtrIcon:SetMouseEnabled(false)
@@ -185,7 +345,33 @@ local function NodeSetup(node, control, data, open, userRequested, enabled)
 	local myErrorCode = mySkill.error or 0
 	local myColor = mySkill.purchased and errorColors[myErrorCode + 1] or colTbl.gray
 	
-	myCtrText:SetHandler("OnMouseEnter", function() showSkTT(myCtrText, i, j, k, mySkill.morph, mySkill.rank, myErrorCode, mySkill) end)
+	local function anythingScribed()
+		if not mySkill.scripts then return false end
+		for i=1,3 do
+			if mySkill.scripts[i] and tonumber(mySkill.scripts[i]) ~= 0 then return true end
+		end
+	end
+	
+	local function anythingScribedButLocked()
+		for i=1,3 do
+			if mySkill.scripts[i] and not IsCraftedAbilityScriptUnlocked(mySkill.scripts[i]) then return true end
+		end
+	end
+	
+	if mySkill.craftedId and anythingScribed() then
+		if not IsCraftedAbilityUnlocked(mySkill.craftedId) then
+			myColor = colTbl.red
+		else
+			local script1, script2, script3 = GetCraftedAbilityActiveScriptIds(mySkill.craftedId)
+			if script1 == mySkill.scripts[1] and script2 == mySkill.scripts[2] and script3 == mySkill.scripts[3] then 
+				myColor = colTbl.green
+			elseif anythingScribedButLocked() then
+				myColor = colTbl.orange
+			end
+		end
+	end
+	
+	myCtrText:SetHandler("OnMouseEnter", function() showSkTT(myCtrText, i, j, k, mySkill.morph, mySkill.rank, myErrorCode, mySkill, LEFT, false, true) end)
 	
 	myCtrText:SetHandler("OnMouseUp", 
 		function(_, mouseButton, upInside, ctrl, _, shift) 
@@ -196,12 +382,12 @@ local function NodeSetup(node, control, data, open, userRequested, enabled)
 	myCtrText:SetColor(myColor:UnpackRGBA())
 	myCtrIcon:SetDesaturation(mySkill.purchased and 0 or 1)
 	
-	myCtrMorph:SetHidden(not mySkill.purchased)
+	myCtrMorph:SetHidden(not mySkill.purchased or mySkill.craftedId)
 	
 	myCtrPoints:SetHidden(mySkill.points <= 0)
 	
-	myCtrBtnMinus:SetHidden(not mySkill.purchased or (mySkill.autoGrant and (mySkill.passive and mySkill.rank == 1 or not mySkill.passive and mySkill.morph == 0)))
-	myCtrBtnPlus:SetHidden(mySkill.maxRaMo)
+	myCtrBtnMinus:SetHidden(not mySkill.purchased or (mySkill.autoGrant and (mySkill.passive and mySkill.rank == 1 or not mySkill.passive and mySkill.morph == 0)) or mySkill.craftedId)
+	myCtrBtnPlus:SetHidden(mySkill.maxRaMo or mySkill.craftedId)
 	
 	myCtrBtnPlus:SetHandler("OnClicked", function(_,_,ctrl,alt,shift) CSPS.plusClickSkill(mySkill, ctrl,alt,shift) end)
 	myCtrBtnPlus:SetHandler("OnMouseEnter", function() showSimpleTT(myCtrBtnPlus, CSPS_Tooltiptext_PlusSk) end)
@@ -228,7 +414,7 @@ local function NodeSetupAttr(node, control, data, open, userRequested, enabled)
 	myCtrText:SetText(myText)
 	myCtrValue:SetText(CSPS.attrPoints[data.i])
 	
-	myCtrBtnMinus:SetHidden(CSPS.attrPoints[data.i] == 0)
+	myCtrBtnMinus:SetHidden(tonumber(CSPS.attrPoints[data.i] or 0) <= 0)
 	myCtrBtnPlus:SetHidden(CSPS.attrPoints[1] + CSPS.attrPoints[2] + CSPS.attrPoints[3] >= CSPS.attrSum())
 	
 	myCtrBtnMinus:SetHandler("OnClicked", function(_,_,ctrl,alt,shift) CSPS.attrBtnPlusMinus(data.i, -1, ctrl,alt,shift) end)
@@ -582,6 +768,8 @@ function CSPS.prepareTheTree()
 	local scrollContainer = CSPSWindow:GetNamedChild("ScrollList")
 	myTree = ZO_Tree:New(scrollContainer:GetNamedChild("ScrollChild"), 24, 0, 2000)
 	myTree:AddTemplate("CSPSLE", NodeSetup, nil, nil, 24, 0)
+	myTree:AddTemplate("CSPSLECRAFT", NodeSetup, nil, nil, 24, 0)
+	
 	myTree:AddTemplate("CSPSLATTR", NodeSetupAttr, nil, nil, 24, 0)
 	myTree:AddTemplate("CSPSLH", CSPS.NodeSectionSetup, nil, nil, 24, 0)
 
@@ -591,12 +779,17 @@ function CSPS.prepareTheTree()
 	myTree:RefreshVisible() 
 end
 
-function CSPS.refreshTree()
+function CSPS.refreshTree(unsavedChanges)
 	if myTree then myTree:RefreshVisible() end
+	if unsavedChanges then	
+		CSPS.unsavedChanges = true
+		CSPS.showElement("apply", true)
+		CSPS.showElement("save", true)
+	end
 end
 
 function CSPS.createCPTree()
-	cpOvernode = cpOvernode or myTree:AddNode("CSPSLH", {name = GS(CSPS_TxtCpNew), variant=TREE_SECTION_CHAMPIONPOINTS})
+	cpOvernode = cpOvernode or myTree:AddNode("CSPSLH", {name = GS(CSPS_TxtCp), variant=TREE_SECTION_CHAMPIONPOINTS})
 	cpDisciplineNodes = cpDisciplineNodes or {}
 	cpControls = {}
 	cpClusterControls = {}
@@ -642,7 +835,7 @@ function CSPS.createTable()
 			if not (skillType == 6 and skillLineIndex == CSPS.kaiserFranz) then
 				local fillContent = {}
 				for skillIndex, skillData in ipairs(lineData) do
-					table.insert(fillContent, {"CSPSLE", {skillType, skillLineIndex, skillIndex, skillData}})
+					table.insert(fillContent, {skillData.craftedId and "CSPSLECRAFT" or "CSPSLE", {skillType, skillLineIndex, skillIndex, skillData}})
 				end
 				
 				table.insert(lineContent, {"CSPSLH", {name = lineData.name, variant = TREE_SECTION_SKILLLINES, skillType=skillType, skillLineIndex=skillLineIndex, fillContent=fillContent, lineData=lineData}})
@@ -655,9 +848,9 @@ function CSPS.createTable()
 	
 	-- Generate tree for attribute points
 	local fillContent = {
-		{"CSPSLATTR", {name = GS(SI_ATTRIBUTES1), i=1, entrColor=cpColors[3]}},
-		{"CSPSLATTR", {name = GS(SI_ATTRIBUTES2), i=2, entrColor=cpColors[2]}},
-		{"CSPSLATTR", {name = GS(SI_ATTRIBUTES3), i=3, entrColor=cpColors[1]}}
+		{"CSPSLATTR", {name = GS(SI_ATTRIBUTES1), i=1, entrColor=cpColors[3]}}, --health
+		{"CSPSLATTR", {name = GS(SI_ATTRIBUTES2), i=2, entrColor=cpColors[2]}}, --magicka
+		{"CSPSLATTR", {name = GS(SI_ATTRIBUTES3), i=3, entrColor=cpColors[1]}}  --stamina
 	}
 	local overnode = myTree:AddNode("CSPSLH", {name = GS(SI_STATS_ATTRIBUTES), variant=TREE_SECTION_ATTRIBUTES, fillContent=fillContent})
 	

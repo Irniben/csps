@@ -11,6 +11,7 @@ local currentType = false
 local currentCategory = false
 local qsCooldown = false
 local barCatsToApply = false
+local activeQS = 1
 
 local CSPS_qsCollectibleList = ZO_SortFilterList:Subclass()
 local qsCollectibleList = false
@@ -121,18 +122,18 @@ local function applySingleSlot(hbIndex, slotIndex, slotData)
 	else
 		local myItemId, myItemSecondId, myItemThirdId, myItemLastId = getItemIdsFromLink(slotData.value)
 		
-		local altItemToSlot = false
+		local itemToSlot = false
 		
 		for bagpackSlotIndex=0, GetBagSize(BAG_BACKPACK)-1 do
 			if IsValidItemForSlot(BAG_BACKPACK, bagpackSlotIndex, 1, barCategories[hbIndex]) then
 				local oneItem = GetItemLink(BAG_BACKPACK, bagpackSlotIndex)
 				
-				if oneItem == slotData.value then itemToSlot = oneItem break end
+				if oneItem == slotData.value then itemToSlot = bagpackSlotIndex break end
 				
 				local oneItemId = GetItemId(BAG_BACKPACK, bagpackSlotIndex)
 				
 				if oneItemId == myItemId then
-					altItemToSlot = bagpackSlotIndex
+					itemToSlot = bagpackSlotIndex
 					local _, secondId, thirdId, lastId = getItemIdsFromLink(oneItem, oneItemId)
 					if myItemSecondId == secondId and myItemThirdId == thirdId and myItemLastId == lastId then
 						if CallSecureProtected("SelectSlotItem", BAG_BACKPACK, bagpackSlotIndex, routeBack1[slotIndex], barCategories[hbIndex])  == false then 
@@ -144,8 +145,8 @@ local function applySingleSlot(hbIndex, slotIndex, slotData)
 				end
 			end
 		end
-		if altItemToSlot then
-			if CallSecureProtected("SelectSlotItem", BAG_BACKPACK, altItemToSlot, routeBack1[slotIndex], barCategories[hbIndex])  == false then 
+		if itemToSlot then
+			if CallSecureProtected("SelectSlotItem", BAG_BACKPACK, itemToSlot, routeBack1[slotIndex], barCategories[hbIndex])  == false then 
 				cspsPost(string.format("%s - %s %s: %s", GS(SI_PROMPT_TITLE_ERROR), GS(SI_BINDING_NAME_GAMEPAD_ASSIGN_QUICKSLOT), slotIndex, slotData.value)) 
 				return false
 			else
@@ -197,6 +198,7 @@ local function applyBarCat(hbIndex, calledByLoop)
 	for slotIndex, slotData in pairs(qsBars[hbIndex]) do
 		if applySingleSlot(hbIndex, slotIndex, slotData) then numSlotsChanged = numSlotsChanged + 1 end
 	end
+	if hbIndex == 1 and GetCurrentQuickslot() ~= activeQS then SetCurrentQuickslot(activeQS) end
 	return numSlotsChanged
 end
 
@@ -228,6 +230,7 @@ end
 
 function CSPS.readCurrentQS()
 	qsBars = getCurrentQsBars(qsBars)
+	activeQS = GetCurrentQuickslot()
 end
 
 local function onQsChange()
@@ -282,7 +285,7 @@ function CSPS.compressQS(tableToCompress, cat) -- if specifying a category never
 	for hbIndex, barTable in pairs(tableToCompress) do
 		table.insert(auxTable, compressSingleBar(barTable))
 	end
-	
+	if not cat or cat == 0 or cat == 1 then table.insert(auxTable, string.format("aq:%s", activeQS)) end
 	return table.concat(auxTable, ";")
 end
 
@@ -365,6 +368,14 @@ function CSPS.extractQS(compressedString, fillTable)
 	table.remove(auxTable, 1)
 	local cat = tonumber(auxTable[1])
 	table.remove(auxTable, 1)
+	local activeAux = false
+	if cat == 0 or cat == 1 then
+		local lastEntry = auxTable[#auxTable]
+		if string.sub(lastEntry,1,3) == "aq:" then
+			activeAux = tonumber(string.sub(lastEntry, 4, 4))
+			table.remove(auxTable, #auxTable)
+		end
+	end
 	
 	for hbIndex, compressedBar in pairs(auxTable) do
 		local theHbIndex = cat == 0 and hbIndex or cat
@@ -373,7 +384,8 @@ function CSPS.extractQS(compressedString, fillTable)
 			extractSingleBar(compressedBar, theHbIndex, fillTable[theHbIndex])
 		end
 	end
-	return fillTable
+	if fillTable == qsBars and activeAux then activeQS = activeAux end
+	return fillTable, activeAux
 end
 
 local function getItemLinkTooltip(itemLink)
@@ -443,7 +455,7 @@ end
 
 CSPS.qsActionInfo = qsActionInfo
 
-function CSPS.addQsBarsToTooltip(qsProfile)	
+function CSPS.addQsBarsToTooltip(qsProfile, qsActive)	
 	local numCats = 0
 	for hbIndex, hbData in pairs(qsProfile) do
 		if type(hbData) == "table" and #hbData > 0 then
@@ -468,8 +480,10 @@ function CSPS.addQsBarsToTooltip(qsProfile)
 				local newLine = lineLength > 28
 				if newLine then lineLength = nameLength end
 				newLine = (numCats == 1 or newLine) and slotIndex > 1
+				local slotIndexF = slotIndex..")"
+				if currentCat == 1 and qsActive and qsActive == reRoute1[slotIndex] then slotIndexF = CSPS.cpColors[4]:Colorize(slotIndexF) end
 				table.insert(categoryTooltip, newLine and "\n" or " ")
-				table.insert(categoryTooltip, string.format("%s) |t23:23:%s|t %s", slotIndex, icon, name or "-"))
+				table.insert(categoryTooltip, string.format("%s |t23:23:%s|t %s", slotIndexF, icon, name or "-"))
 			end
 			if currentCat < numCats then table.insert(categoryTooltip, "\n|t300:7:EsoUI/Art/Miscellaneous/horizontalDivider.dds|t\n") end
 			
@@ -955,6 +969,19 @@ local function NodeSetupQS(node, control, data, open, userRequested, enabled)
 					InformationTooltip:AddLine(v, "ZoFontGame", r, g, b, CENTER, nil, TEXT_ALIGN_CENTER, SET_TO_FULL_SIZE)
 				end
 			end
+			
+			
+			
+			if data.barIndex == 1 and activeQS ~= reRoute1[data.qsIndex] then
+				InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t: %s", GS(SI_GUILD_RECRUITMENT_DEFAULT_SELECTION_TEXT)))
+			end
+			
+			-- SI_KEYCODE4 (Ctrl)
+						
+			if not fitsSlot then
+				InformationTooltip:AddLine(string.format("|t26:26:esoui/art/miscellaneous/icon_lmb.dds|t + %s: %s", GS(SI_KEYCODE7), GS(SI_APPLY)))
+			end
+			
 			InformationTooltip:AddLine(GS(CSPS_QS_TT_Edit)) 
 		end
 	else
@@ -971,6 +998,9 @@ local function NodeSetupQS(node, control, data, open, userRequested, enabled)
 			return
 		elseif shift then
 			applySingleSlot(data.barIndex, data.qsIndex, myAction)
+		elseif button == 1 then
+			activeQS = reRoute1[data.qsIndex]
+			CSPS.refreshTree()
 		end
 	end)
 	
@@ -983,6 +1013,13 @@ local function NodeSetupQS(node, control, data, open, userRequested, enabled)
 	ctrMarker:SetTexture(markerTexture)
 	-- + means counterclockwise
 	ctrMarker:SetTextureRotation(-3/4 * math.pi - (data.qsIndex * math.pi/4), 0.5,0.5)
+	if data.barIndex == 1 then
+		if reRoute1[data.qsIndex] == activeQS then
+			ctrMarker:SetColor(CSPS.cpColors[4]:UnpackRGB())
+		else
+			ctrMarker:SetColor(1,1,1)
+		end
+	end
 end
 
 function CSPS.setupQsSection(control, node, data)

@@ -177,9 +177,16 @@
 							<Dimensions  y="24" />
 							<Anchor point="TOPLEFT" relativeTo="$(grandparent)" relativePoint="TOPLEFT"  offsetX="8" offsetY="8" />
 						</Label>
+						<Button name="$(grandparent)BtnListSelect">
+							<Dimensions y="25" x="25" />
+							<Anchor point="TOPLEFT" relativeTo="$(grandparent)SetsLabel" relativePoint="BOTTOMLEFT"  offsetY="5" />
+							
+							<Textures normal="esoui/art/tradinghouse/tradinghouse_listings_tabicon_up.dds" pressed="esoui/art/tradinghouse/tradinghouse_listings_tabicon_down.dds" mouseOver="esoui/art/tradinghouse/tradinghouse_listings_tabicon_over.dds" />
+							<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+						</Button>
 						<Backdrop name="$(grandparent)Sets" tier="1" inherits="ZO_SingleLineEditBackdrop_Keyboard"> <!-- tier HIGH? -->
 							<Dimensions  y="25" />					
-							<Anchor point="TOPLEFT" relativeTo="$(grandparent)SetsLabel" relativePoint="BOTTOMLEFT"  offsetY="5" />
+							<Anchor point="TOPLEFT" relativeTo="$(grandparent)BtnListSelect" relativePoint="TOPRIGHT"  offsetX="5" />
 							<Anchor point="RIGHT" relativeTo="$(grandparent)" relativePoint="RIGHT"  offsetX="-8" constrains="X" />
 							<Controls>
 								<EditBox name="$(parent)Edit" inherits="ZO_DefaultEditForBackdrop ZO_EditDefaultText">
@@ -332,8 +339,19 @@
 			<OnReceiveDrag>CSPS.onHbIconReceive(self.i, self.j)</OnReceiveDrag>
 			<OnMouseUp>
 				WINDOW_MANAGER:SetMouseCursor(0)
-				if button==2 then CSPS.hbSkillRemove(self.i, self.j) end
+				if not upInside then return end
+				if button==2 then 
+					CSPS.hbSkillRemove(self.i, self.j) 
+				elseif button==1 then
+					CSPS.hbSkillMenu(self.i, self.j) 
+				end
 			</OnMouseUp>
+			<OnMouseEnter>
+				CSPS.hbSkillTT(self, self.i, self.j)
+			</OnMouseEnter>
+			<OnMouseExit>
+				ZO_Tooltips_HideTextTooltip()
+			</OnMouseExit>
 			<OnDragStart>if button == 1 then WINDOW_MANAGER:SetMouseCursor(15)  CSPS.onHbIconDrag(self.i,self.j) end</OnDragStart>
 		</Texture>	
 		<Label name="CSPSCPPLABEL" font="ZoFontGame" wrapMode="ELLIPSIS" horizontalAlignment="LEFT" verticalAlignment="CENTER" virtual="true" />
@@ -507,6 +525,12 @@
 					  <OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_SkIcon))</OnMouseEnter>
 					  <OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
 				</Texture>	
+				<Texture name="$(parent)Customize" mouseEnabled="true" hidden="true">
+					<Dimensions x="24" y="24" />
+				      <Anchor point="RIGHT" relativeTo="$(parent)Icon" relativePoint="LEFT" offsetX="-4" />
+					  <OnMouseEnter></OnMouseEnter>
+					  <OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Texture>					
 				<Button name="$(parent)BtnMinus">
 					<Dimensions y="28" x="28" />
 					<Anchor point="CENTER" relativePoint="CENTER" relativeTo="$(parent)Icon" constrains="Y"/>
@@ -542,6 +566,29 @@
 			</Controls>
 		</Control>
 		
+		<Control name="CSPSLECRAFT" inherits="CSPSLE" virtual="true">
+			<Controls>
+				<Texture name="$(parent)Script1" mouseEnabled="true" textureFile="esoui/art/skills/scribing_primary_dragging.dds">
+					<Dimensions x="25" y="25" />
+				      <Anchor point="LEFT" relativeTo="$(parent)Morph" relativePoint="LEFT" />
+					  <OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_SkIcon))</OnMouseEnter>
+					  <OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Texture>	
+				<Texture name="$(parent)Script2" mouseEnabled="true" textureFile="esoui/art/skills/scribing_secondary_dragging.dds">
+					<Dimensions x="25" y="25" />
+				      <Anchor point="CENTER" relativeTo="$(parent)Morph" relativePoint="CENTER" />
+					  <OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_SkIcon))</OnMouseEnter>
+					  <OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Texture>	
+				<Texture name="$(parent)Script3" mouseEnabled="true" textureFile="esoui/art/skills/scribing_tertiary_dragging.dds">
+					<Dimensions x="25" y="25" />
+				      <Anchor point="RIGHT" relativeTo="$(parent)Morph" relativePoint="RIGHT" />
+					  <OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(CSPS_Tooltiptext_SkIcon))</OnMouseEnter>
+					  <OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>	
+				</Texture>	
+			</Controls>
+			
+		</Control>
 		<Control name="CSPSCP2HB" inherits="ZO_TreeEntry" virtual="true">
 		<Dimensions  y="34" />
 			<Controls>

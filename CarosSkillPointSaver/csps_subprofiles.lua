@@ -58,7 +58,7 @@ local profileCatByType = {
 	[PROFILE_TYPE_QS_ACCOUNT] = PROFILE_CATEGORY_QS,	[PROFILE_TYPE_QS_CHAR] = PROFILE_CATEGORY_QS,	[PROFILE_TYPE_SK_ACCOUNT] = PROFILE_CATEGORY_SK,	[PROFILE_TYPE_SK_CHAR] = PROFILE_CATEGORY_SK,
 	[PROFILE_TYPE_GEAR_ACCOUNT] = PROFILE_CATEGORY_GEAR,
 	[PROFILE_TYPE_GEAR_CHAR] = PROFILE_CATEGORY_GEAR,
-	[PROFILE_TYPE_HOTBARS_ACCOUNT] = PROFILE_CATEGORY_CP, -- (placeholder type)
+	[PROFILE_TYPE_HOTBARS_ACCOUNT] = PROFILE_CATEGORY_CP, 
 	[PROFILE_TYPE_OUTFIT_ACCOUNT] = PROFILE_CATEGORY_OUTFIT,
 	[PROFILE_TYPE_OUTFIT_CHAR] = PROFILE_CATEGORY_OUTFIT,
 }
@@ -80,14 +80,14 @@ local profileDisciplineTitles = {
 local profileCatsThatCanBeConnected = {[PROFILE_CATEGORY_CP] = true, [PROFILE_CATEGORY_QS] = true,}
 		
 local zoneAbbrByType = {
-	trial = {[636] = "HRC", [638] = "AA", [639] = "SO", [1263] = "RG", [1344] = "DSR", [725] = "MoL", [975] = "HoF", [1000] = "AS", [1051] = "CR", [1121] = "SS", [1196] = "KA",},
+	trial = {[636] = "HRC", [638] = "AA", [639] = "SO", [1263] = "RG", [1344] = "DSR", [725] = "MoL", [975] = "HoF", [1000] = "AS", [1051] = "CR", [1121] = "SS", [1196] = "KA", [1427] = "SE", [1478] = "LC"},
 	solo = {[1227] = "VH", [677] = "MA",},
-	arena = {[1082] = "BRP", [635] = "DSA",}
+	arena = {[1082] = "BRP", [635] = "DSA", [1436]="EA",}
 }
 
 local roleAbbr = {"DD", "T", "", "H",}
 
-local classAbbr = {"DK", "Sorc", "NB", "Warden", "Necro", "Temp",}
+local classAbbr = {"DK", "Sorc", "NB", "Warden", "Necro", "Temp", [117] = "Arc"}
 
 local roleFilter = ""
 
@@ -116,7 +116,7 @@ local function getProfileTypeLists(createIfEmpty, presetsToo, accountCpHb)
 		sV.qsProfiles,	cC.qsProfiles,			--6,7
 		sV.skProfiles,	cC.skProfiles,			--8,9
 		sV.gearProfiles, cC.gearProfiles, 		--10,11
-		nil,
+		sV.cpHbProfiles,						--12 
 		sV.outfitProfiles, cC.outfitProfiles, -- 13, 14
 	}
 	if accountCpHb then table.insert(profileTypeLists, sV.cpHbProfiles) end --12: account wide cp hotbars
@@ -511,9 +511,9 @@ end
 function CSPS.showSkillProfileTT(control, myType, myId)
 	local myProfile = getProfileByTypeAndId(myType, myId)
 	if not myProfile or not myProfile.actionBar and (not myProfile.hbComp or not myProfile.hbComp.prog or not myProfile.hbComp.pass) then return end
-	local activeSkills, passiveSkills, changedRace = false, false, false
+	local activeSkills, passiveSkills, changedRace, crafted = false, false, false, false
 	
-	if myProfile.hbComp then activeSkills, passiveSkills, changedRace = CSPS.skTableExtract(myProfile.hbComp.prog, myProfile.hbComp.pass, true, true) end
+	if myProfile.hbComp then activeSkills, passiveSkills, changedRace, crafted = CSPS.skTableExtract(myProfile.hbComp.prog, myProfile.hbComp.pass, true, true, myProfile.hbComp.crafted) end
 	
 	InitializeTooltip(InformationTooltip, control, LEFT)	
 	local r, g, b = ZO_SELECTED_TEXT:UnpackRGB()
@@ -1417,7 +1417,7 @@ function CSPS.showQuickSlotProfileTT(control, myType, myId)
 	
 	if not compressedProfile then return end
 	
-	local qsProfile = CSPS.extractQS(compressedProfile.hbComp)
+	local qsProfile, qsActive = CSPS.extractQS(compressedProfile.hbComp)
 	
 	if not qsProfile or type(qsProfile) ~= "table" then return end
 	
@@ -1426,7 +1426,7 @@ function CSPS.showQuickSlotProfileTT(control, myType, myId)
 
 	ZO_Tooltip_AddDivider(InformationTooltip)
 	
-	CSPS.addQsBarsToTooltip(qsProfile)
+	CSPS.addQsBarsToTooltip(qsProfile, qsActive)
 	
 	addConnectionToTooltip(myType, myId, 4)
 end
@@ -1458,8 +1458,8 @@ local function loadSkillProfile(myType, myId, _)
 	if not myProfile or not myProfile.actionBar and (not myProfile.hbComp or not myProfile.hbComp.prog or not myProfile.hbComp.pass) then return end
 	
 	if myProfile.hbComp then
-		local morphs, upgrades = CSPS.skTableExtract(myProfile.hbComp.prog, myProfile.hbComp.pass)
-		CSPS.populateSkills(morphs, upgrades, true) -- true = don't reset the lists beforehand
+		local morphs, upgrades, _, crafted, styles = CSPS.skTableExtract(myProfile.hbComp.prog, myProfile.hbComp.pass, false, false, myProfile.hbComp.crafted, myProfile.hbComp.styles)
+		CSPS.populateSkills(morphs, upgrades, true, crafted, styles) -- true = don't reset the lists beforehand
 	end
 	
 	if myProfile.actionBar then

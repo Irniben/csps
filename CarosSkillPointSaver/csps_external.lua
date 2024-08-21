@@ -442,8 +442,8 @@ local function importCompressed()
 	local invalidStr = {[""] = true, ["-"] = true}
 	
 	if compTable[1] and not invalidStr[compTable[1]] and partTable.skills then 
-		local prog, pass = SplitString('*', compTable[1])
-		CSPS.tableExtract({part1 = prog}, {part1 = pass})
+		local prog, pass, crafted, styles = SplitString('*', compTable[1])
+		CSPS.tableExtract({part1 = prog}, {part1 = pass}, crafted, styles)
 	end
 	
 	if compTable[2] and not invalidStr[compTable[2]] and partTable.hotbars then 
@@ -488,7 +488,9 @@ local function exportCompressed()
 		local pass = {}
 		for i, v in pairs(skillTable.pass) do table.insert(pass, v) end
 		pass = table.concat(pass, ",")
-		compTable[1] = string.format("%s*%s", prog ~= "" and prog or "-" , pass ~= "" and pass or "-" )
+		local crafted = skillTable.crafted ~= "" and skillTable.crafted or "-"
+		local styles = skillTable.styles ~= "" and skillTable.styles or "-"
+		compTable[1] = string.format("%s*%s*%s", prog ~= "" and prog or "-" , pass ~= "" and pass or "-", crafted, styles)
 	end
 	
 	if partTable.hotbar then compTable[2] = CSPS.hbCompress(CSPS.hbTables) or "-" end
@@ -534,7 +536,7 @@ function CSPS.transferProfile(cpPSub)
 		local skillTableClean = myTable.werte
 		local attrComp = myTable.attribute
 		local hbComp = myTable.hbwerte
-		CSPS.tableExtract(skillTableClean.prog, skillTableClean.pass)
+		CSPS.tableExtract(skillTableClean.prog, skillTableClean.pass, skillTableClean.crafted, skillTableClean.styles)
 			
 		if CSPS.doGear then
 			local gearComp = myTable.gearComp or ""

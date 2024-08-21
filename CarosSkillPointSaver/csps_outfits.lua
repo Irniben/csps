@@ -81,6 +81,7 @@ end
 
 function outfits.compress(outfitTable)
 	outfitTable = outfitTable or outfits.current
+	if not outfitTable.slots then return nil end
 	local compressedSlots = {}
 	for outfitCollectibleType, collectibleId in pairs(outfits.current.slots) do
 		if collectibleId and collectibleId ~= 0 then table.insert(compressedSlots, string.format("%s:%s", outfitCollectibleType, collectibleId)) end

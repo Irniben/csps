@@ -46,6 +46,7 @@ local function refreshTriggers()
 	triggers.DR = {}
 	triggers.DRbyRole = {}
 	triggers.LOC = {}
+	triggers.WW = {}
 	
 	local bindingTables = {[true] = CSPS.bindingsA, [false] = CSPS.bindings}
 	
@@ -53,25 +54,25 @@ local function refreshTriggers()
 		for groupIndex, groupBindings in pairs(bindings) do 
 			local groupIndex = accountWide and groupIndex.."-a" or groupIndex
 			for _, triggerData in pairs(groupBindings) do
-				local triggerName, triggerType, triggergroup, triggerSet, triggerFilter = unpack(triggerData)
+				local triggerName, triggerType, triggerGroup, triggerSet, triggerFilter = unpack(triggerData)
 				if triggerType == triggerTypes.DR then 
 					if triggerFilter then -- groupRole
-						triggers.DRbyRole[triggergroup] = triggers.DRbyRole[triggergroup] or {}
-						triggers.DRbyRole[triggergroup][triggerSet] = triggers.DRbyRole[triggergroup][triggerSet] or {}
-						triggers.DRbyRole[triggergroup][triggerSet][triggerFilter] = groupIndex
+						triggers.DRbyRole[triggerGroup] = triggers.DRbyRole[triggerGroup] or {}
+						triggers.DRbyRole[triggerGroup][triggerSet] = triggers.DRbyRole[triggerGroup][triggerSet] or {}
+						triggers.DRbyRole[triggerGroup][triggerSet][triggerFilter] = groupIndex
 					else
-						triggers.DR[triggergroup] = triggers.DR[triggergroup] or {}
-						triggers.DR[triggergroup][triggerSet] = groupIndex
+						triggers.DR[triggerGroup] = triggers.DR[triggerGroup] or {}
+						triggers.DR[triggerGroup][triggerSet] = groupIndex
 					end
 				elseif triggerType == triggerTypes.AG then
-					triggers.AG[triggergroup] = triggers.AG[triggergroup] or {}
-					triggers.AG[triggergroup][triggerSet] = groupIndex
+					triggers.AG[triggerGroup] = triggers.AG[triggerGroup] or {}
+					triggers.AG[triggerGroup][triggerSet] = groupIndex
 				elseif triggerType == triggerTypes.LOC then
 					triggers.LOC[triggerSet] = groupIndex
 				elseif triggerType == triggerTypes.WW then
 					triggers.WW[triggerGroup] = triggers.WW[triggerGroup] or {}
-					triggers.WW[triggerSet][triggerGroup] = triggers.WW[triggerSet][triggerGroup] or {}
-					triggers.WW[triggerSet][triggerGroup][triggerFilter] = groupIndex
+					triggers.WW[triggerGroup][triggerSet] = triggers.WW[triggerGroup][triggerSet] or {}
+					triggers.WW[triggerGroup][triggerSet][triggerFilter] = groupIndex
 				end
 			end
 		end
@@ -107,7 +108,7 @@ function CSPS.groupBarInit(self, discipline)
 		function(_, mouseButton, upInside) 
 			if not upInside then return end
 			if mouseButton == 1 then 
-				ZO_ComboBox_DropdownClicked(dropdownControl)
+				ZO_ComboBox_DropdownClicked(dropdownControl, MOUSE_BUTTON_INDEX_LEFT, true)
 				PlaySound(SOUNDS.COMBO_CLICK)
 			else
 				CSPS.showSubProfileDiscipline(discipline) 
@@ -118,7 +119,7 @@ function CSPS.groupBarInit(self, discipline)
 	dropdownBtnControl:SetHandler("OnClicked",
 		function(_, mouseButton) 
 			if mouseButton == 1 then 
-				ZO_ComboBox_DropdownClicked(dropdownControl)
+				ZO_ComboBox_DropdownClicked(dropdownControl, MOUSE_BUTTON_INDEX_LEFT, true)
 				PlaySound(SOUNDS.COMBO_CLICK)
 			else
 				CSPS.showSubProfileDiscipline(discipline) 
@@ -969,7 +970,7 @@ function CSPS.initConnect()
 		ZO_PostHook(DressingRoom, "LoadSet", function(_, x2) HookDR(x2) end)
 	end
 	if cspsWW ~= nil then
-		ZO_PostHook(WizardsWardrobe, "LoadSetup", function(zone, pageId, setupId) if not zone then return end HookWW(zone.Tag, pageId, setupId) end)
+		ZO_PostHook(WizardsWardrobe, "LoadSetup", function(zone, pageId, setupId) if not zone then return end HookWW(zone.tag, pageId, setupId) end)
 	end	
 end
 

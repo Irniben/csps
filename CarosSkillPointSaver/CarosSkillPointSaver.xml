@@ -425,7 +425,7 @@
 						<Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$(parent)SkLabel" offsetX="4"/>
 						<Textures normal="ESOUI/art/buttons/accept_up.dds" pressed="ESOUI/art/buttons/accept_down.dds" mouseOver="ESOUI/art/buttons/accept_over.dds" />
 						<OnClicked>CSPS.applySkills()</OnClicked>
-						<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT,  GetString(CSPS_Tooltiptext_Sk))</OnMouseEnter>
+						<OnMouseEnter>CSPS.showApplySkillsTT(self)</OnMouseEnter>
 						<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
 					</Button>
 					<Label name="$(parent)AttrLabel" font="ZoFontGame" text="SI_STATS_ATTRIBUTES" mouseEnabled="true">
@@ -485,36 +485,35 @@
 				
 				
               
-                <Control name="$(grandparent)MundusComboBox" resizeToFitDescendents="true" mouseEnabled="true">
+                <Control name="$(grandparent)Mundus" resizeToFitDescendents="true" mouseEnabled="true">
 					<Dimensions y="24" />
 					<Anchor point="TOPRIGHT" relativePoint="BOTTOMRIGHT" relativeTo="$(grandparent)SubProfiles" offsetX="-7" offsetY="8" />
-                    <OnInitialized> ZO_ComboBox:New(self) </OnInitialized>
-                    <OnMouseUp>if upInside then ZO_ComboBox_DropdownClicked(self) end</OnMouseUp>
+                    <OnMouseUp>if upInside then CSPS.showMundusMenu() end</OnMouseUp>
 					<OnMouseEnter>CSPS.showMundusTooltip(self)</OnMouseEnter>
 					<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
                     <Controls>
-                        
-						<Texture name="$(parent)MundusIcon" mouseEnabled="true" textureFile="esoui/art/zonestories/completiontypeicon_mundusstone.dds">
-						  <Anchor point="LEFT"/>
-                            <OnMouseUp>if upInside then ZO_ComboBox_DropdownClicked(self:GetParent()) end </OnMouseUp>
+                        <Label name="$(parent)Label" font="ZoFontGame">
+                            <Dimensions y="24" />
+							<Anchor point="RIGHT" relativeTo="$(parent)"  relativePoint="RIGHT" offsetX="0" offsetY="0"/>		
+                            <OnMouseUp>if upInside then CSPS.showMundusMenu() end </OnMouseUp>
+							<OnMouseEnter>CSPS.showMundusTooltip(self:GetParent())</OnMouseEnter>
+							<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
+                        </Label>
+						<Texture name="$(parent)Icon" mouseEnabled="true" textureFile="esoui/art/zonestories/completiontypeicon_mundusstone.dds">
+							<Anchor point="RIGHT" relativeTo="$(parent)Label" relativePoint="LEFT" offsetX="-3" offsetY="0"/>		
+                            <OnMouseUp>if upInside then CSPS.showMundusMenu() end </OnMouseUp>
 							<OnMouseEnter>CSPS.showMundusTooltip(self:GetParent())</OnMouseEnter>
 							<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
 						  <Dimensions x="25" y="25"/>
 						</Texture>
-						<Label name="$(parent)SelectedItemText" inherits="ZO_TooltipIfTruncatedLabel" color="INTERFACE_COLOR_TYPE_TEXT_COLORS:INTERFACE_TEXT_COLOR_SELECTED">
-                            <Dimensions y="24" />
-							<Anchor point="LEFT" relativeTo="$(parent)MundusIcon" relativePoint="RIGHT" offsetX="3" offsetY="0"/>		
-                            <OnMouseUp>if upInside then ZO_ComboBox_DropdownClicked(self:GetParent()) end </OnMouseUp>
-							<OnMouseEnter>CSPS.showMundusTooltip(self:GetParent())</OnMouseEnter>
-							<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
-                        </Label>
+						
                     </Controls>
                 </Control>
 				
 				
 				<Button name="$(grandparent)BtnApplyAll" hidden="true">
 					<Dimensions y="32" x="32" />
-					<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(grandparent)MundusComboBox" offsetX="-15"/>
+					<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(grandparent)Mundus" offsetX="-15"/>
 						<Textures normal="ESOUI/art/buttons/accept_up.dds" pressed="ESOUI/art/buttons/accept_down.dds" mouseOver="ESOUI/art/buttons/accept_over.dds" />
 					<OnMouseUp>if upInside then CSPS.btnApplyAll(button) end</OnMouseUp>
 					<OnMouseEnter>CSPS.showApplyAllTooltip(self)</OnMouseEnter>
@@ -663,7 +662,7 @@
 				
 				<Backdrop hidden="true" name="$(grandparent)CPSideBar" mouseEnabled="true" centerColor="080808" edgeColor="424242" >
 							<Anchor point="RIGHT" relativePoint="LEFT" relativeTo="$(grandparent)" />
-							<Dimensions x="38" y="574" />
+							<Dimensions x="38" y="622" />
 							<Edge edgeSize="1" />
 							<Controls>
 								<Button name="$(parent)ToggleLabels">
@@ -672,6 +671,14 @@
 									<Textures normal="esoui/art/buttons/large_leftarrow_up.dds" pressed="esoui/art/buttons/large_leftarrow_down.dds" mouseOver="esoui/art/buttons/large_leftarrow_over.dds" />
 									<OnClicked>CSPS.showElement("cpsidebarlabels")</OnClicked>
 									<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(SI_DIALOG_CANCEL))</OnMouseEnter>
+									<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
+								</Button>
+								<Button name="$(parent)ApplyBars">
+									<Anchor point="BOTTOMRIGHT" relativeTo="$(parent)" relativePoint="BOTTOMRIGHT" offsetX="-5" offsetY="-10" />
+									<Dimensions x="28" y="28" />
+									<Textures normal="esoui/art/buttons/accept_up.dds" pressed="esoui/art/buttons/accept_down.dds" mouseOver="esoui/art/buttons/accept_over.dds" />
+									<OnClicked>CSPS.cp.applyConfirm(false, {true, true, true})</OnClicked>
+									<OnMouseEnter>ZO_Tooltips_ShowTextTooltip(self, RIGHT, GetString(SI_APPLY))</OnMouseEnter>
 									<OnMouseExit>ZO_Tooltips_HideTextTooltip()</OnMouseExit>
 								</Button>
 							</Controls>

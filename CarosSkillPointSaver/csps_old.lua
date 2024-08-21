@@ -19,6 +19,7 @@ local function createReMaps()
 		[4] = {127,128,129}, 	-- Warden
 		[5] = {131,132,133},	-- Necro
 		[6] = {22,27,28}, 		-- Temp
+		[117] = {218, 219, 220},
 	}
 	
 	local auxClassMap = {} 
